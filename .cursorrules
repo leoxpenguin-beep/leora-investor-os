@@ -1,8 +1,41 @@
-# Leora Investor OS — Cursor rules
+# LEORA INVESTOR OS — CURSOR RULES (LOCKED)
 
-- **Logic Lock:** The app and AI must NEVER compute financial metrics. Only display stored snapshot values.
-- **No unsupported operational KPIs in dashboards:** do not show Error Rate/Rework %, Design-to-Production time, or market-beating delivery claims.
-- **Copy is locked:** do not rewrite locked narratives or Q&A. Only format for UI unless explicitly instructed to create a new version.
-- **Allowed Notion sources only:** Pages 06,07,08,09,10,11,18,19,21.
-- **Supabase:** reads via anon key, writes only via service role in server scripts.
-- **Any new metric must have:** metric_key + value_text + source_page.
+## Non-Negotiables (Logic Lock)
+1) NO FINANCIAL MATH in app UI or LLM responses.
+   - Never compute revenue, margins, runway, MoM, share price, value multiple, break-even, etc.
+   - Only display stored snapshot values from Supabase `metric_values.value_text` or `investor_positions.*_text`.
+
+2) Read-Only Investor OS
+   - App is read-only. Authenticated investors can only SELECT.
+   - All writes happen only via server scripts using Supabase SERVICE ROLE.
+
+3) Allowed Notion Sources Only (V1)
+   - Only these pages are valid sources: 06, 07, 08, 09, 10, 11, 18, 19, 21.
+   - No other sources may be used or referenced.
+
+4) Forbidden Operational KPIs (V1)
+   - Do NOT show or claim these as metrics anywhere:
+     - Error Rate / Rework %
+     - Design-to-Production Time
+     - "Near zero errors"
+     - "Faster than market" or market-beating delivery claims
+   - LeoX differentiation is STRUCTURAL/NARRATIVE only (Core Thesis), not KPI-based.
+
+## Copy Lock (Do not rewrite)
+- "Locked scripts" and Q&A are canonical.
+- Do NOT rewrite narrative or investor copy unless explicitly instructed to create a new version (V2+).
+- Allowed edits: formatting for UI, headings, spacing, microcopy labels, disclaimers.
+
+## Security / Access
+- Use Supabase anon key in the app for reads.
+- Use SERVICE ROLE key only in scripts/server tools.
+- Enforce RLS so investors can only read their own `investor_positions`.
+
+## Work Style
+- Build module-by-module exactly as in MASTER_BUILD_PLAN.
+- No scope creep. No new features unless requested.
+- Every PR must include a brief "Guardrails Check" note.
+
+## Definition of Done
+- Every displayed value traces to a metric_key + snapshot_id + source_page.
+- No derived computations in UI or LLM responses.
