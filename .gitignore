@@ -1,0 +1,2 @@
+# Ignore MCP config when it contains API keys (use mcp.json.example to share structure)
+.cursor/mcp.json

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git"],
+      "env": {
+        "GITHUB_TOKEN": "YOUR_GITHUB_OR_GIT_API_TOKEN_HERE"
+      }
+    }
+  }
+}
