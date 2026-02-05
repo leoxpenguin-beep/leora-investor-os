@@ -1,0 +1,8 @@
+# Leora Investor OS — Cursor rules
+
+- **Logic Lock:** The app and AI must NEVER compute financial metrics. Only display stored snapshot values.
+- **No unsupported operational KPIs in dashboards:** do not show Error Rate/Rework %, Design-to-Production time, or market-beating delivery claims.
+- **Copy is locked:** do not rewrite locked narratives or Q&A. Only format for UI unless explicitly instructed to create a new version.
+- **Allowed Notion sources only:** Pages 06,07,08,09,10,11,18,19,21.
+- **Supabase:** reads via anon key, writes only via service role in server scripts.
+- **Any new metric must have:** metric_key + value_text + source_page.
