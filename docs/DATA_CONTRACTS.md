@@ -46,3 +46,85 @@ Canonical schema and usage for Leora Investor OS. All displayed values are store
 ## Notion source pages (V1)
 
 Allowed `source_page` values: `06`, `07`, `08`, `09`, `10`, `11`, `18`, `19`, `21`. No other sources.
+
+## Read API contract (SELECT-only)
+
+This project’s read layer is **retrieval-only**. Clients must not compute, infer, or derive any new metric values. All UI rendering must display stored snapshot strings (`value_text` / display-only text fields), or render `"—"` with a TODO if missing.
+
+### Type shapes (TypeScript-style)
+
+```ts
+export type SourcePage =
+  | "06"
+  | "07"
+  | "08"
+  | "09"
+  | "10"
+  | "11"
+  | "18"
+  | "19"
+  | "21";
+
+export type Snapshot = {
+  id: string;
+  created_at: string; // timestamptz ISO string
+  label: string | null;
+};
+
+export type MetricValue = {
+  snapshot_id: string;
+  metric_key: string;
+  value_text: string;
+  source_page: SourcePage;
+  created_at: string; // timestamptz ISO string
+};
+
+export type InvestorPosition = {
+  investor_id: string;
+  snapshot_id: string;
+  summary_text: string | null;
+  narrative_text: string | null;
+  created_at: string; // timestamptz ISO string
+  updated_at: string; // timestamptz ISO string
+};
+```
+
+### Read operations (minimum set)
+
+- **List snapshots**
+  - Input: `limit` (default 50)
+  - Output: `Snapshot[]` (ordered by `created_at desc`)
+  - SQL:
+
+```sql
+select id, created_at, label
+from public.snapshots
+order by created_at desc
+limit 50;
+```
+
+- **Get metrics for a snapshot**
+  - Input: `snapshot_id`
+  - Output: `MetricValue[]` (recommended ordering: `metric_key asc`)
+  - SQL:
+
+```sql
+select snapshot_id, metric_key, value_text, source_page, created_at
+from public.metric_values
+where snapshot_id = :snapshot_id
+order by metric_key asc;
+```
+
+- **Get investor’s position text for a snapshot (RLS owner-only)**
+  - Input: `snapshot_id`
+  - Output: `InvestorPosition | null`
+  - Notes:
+    - App/client must use the authenticated user’s session (RLS enforces `auth.uid() = investor_id`).
+    - Do not “summarize” or rewrite these fields in code; display verbatim.
+  - SQL:
+
+```sql
+select investor_id, snapshot_id, summary_text, narrative_text, created_at, updated_at
+from public.investor_positions
+where snapshot_id = :snapshot_id;
+```

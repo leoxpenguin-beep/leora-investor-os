@@ -15,3 +15,5 @@ Scripts (e.g. `ingest_snapshot.js` or `sync_notion_metrics.ts`) will be added he
 1. Use only the SERVICE ROLE key for Supabase client.
 2. Write only to `snapshots`, `metric_values`, `investor_positions` per DATA_CONTRACTS.
 3. Populate `metric_key`, `value_text`, `source_page` (and `snapshot_id`) for every metric row.
+
+See `scripts/ingest_snapshot_skeleton.md` for a copy-only ingest skeleton (no math, allowlisted sources only).
