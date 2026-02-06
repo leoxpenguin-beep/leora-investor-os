@@ -1,11 +1,60 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { getSupabaseEnvStatus } from "../lib/supabaseClient";
+import { rpcListSnapshots, SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
 
-export function OrbitScreen() {
+export function OrbitScreen({
+  onSelectSnapshot,
+}: {
+  onSelectSnapshot: (snapshot: SnapshotRow) => void;
+}) {
+  const env = getSupabaseEnvStatus();
+  const [snapshots, setSnapshots] = React.useState<SnapshotRow[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [errorText, setErrorText] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+
+    async function run() {
+      setLoading(true);
+      setErrorText(null);
+      try {
+        const data = await rpcListSnapshots({ p_limit: 50 });
+        if (!alive) return;
+        setSnapshots(data);
+      } catch (err) {
+        if (!alive) return;
+        setSnapshots([]);
+        setErrorText("—");
+        // TODO: Add locked copy for error states to docs/LOCKED_COPY.md.
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    // Only attempt fetch when env is set; otherwise show placeholders.
+    if (env.hasUrl && env.hasAnonKey) {
+      void run();
+    } else {
+      setSnapshots([]);
+    }
+
+    return () => {
+      alive = false;
+    };
+  }, [env.hasUrl, env.hasAnonKey]);
+
   return (
     <View style={styles.root}>
       <GravityCard>
@@ -13,30 +62,61 @@ export function OrbitScreen() {
           <GravityDot size={10} />
           <Text style={styles.title}>Orbit</Text>
         </View>
-        <Text style={styles.subtitle}>
-          Investor list placeholder. No real data is wired in Module 0.
-        </Text>
+        <Text style={styles.subtitle}>Snapshots (read-only)</Text>
+        {!env.hasUrl || !env.hasAnonKey ? (
+          <Text style={styles.meta}>
+            Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
+          </Text>
+        ) : loading ? (
+          <Text style={styles.meta}>Loading…</Text>
+        ) : errorText ? (
+          <Text style={styles.meta}>{errorText}</Text>
+        ) : snapshots.length === 0 ? (
+          <Text style={styles.meta}>—</Text>
+        ) : null}
       </GravityCard>
 
-      <View style={styles.list}>
-        <OrbitRow label="Investor" />
-        <OrbitRow label="Investor" />
-        <OrbitRow label="Investor" />
-      </View>
+      <FlatList
+        data={snapshots}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        renderItem={({ item }) => (
+          <OrbitRow snapshot={item} onPress={() => onSelectSnapshot(item)} />
+        )}
+      />
     </View>
   );
 }
 
-function OrbitRow({ label }: { label: string }) {
+function OrbitRow({
+  snapshot,
+  onPress,
+}: {
+  snapshot: SnapshotRow;
+  onPress: () => void;
+}) {
+  const right =
+    snapshot.snapshot_kind === "project"
+      ? snapshot.project_key ?? "—"
+      : snapshot.snapshot_kind;
+
   return (
-    <GravityCard style={styles.rowCard}>
-      <View style={styles.row}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {/* TODO: Replace with display-only snapshot text once wired (no derived metrics). */}
-        <Text style={styles.rowValue}>—</Text>
-      </View>
-      <Text style={styles.rowMeta}>Display-only placeholder</Text>
-    </GravityCard>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [pressed && styles.rowPressed]}
+    >
+      <GravityCard style={styles.rowCard}>
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>{snapshot.snapshot_month}</Text>
+          <Text style={styles.rowValue}>{right}</Text>
+        </View>
+        <Text style={styles.rowMeta}>
+          {snapshot.label ?? "—"}
+          {/* TODO: Use locked copy for snapshot row meta if needed. */}
+        </Text>
+      </GravityCard>
+    </Pressable>
   );
 }
 
@@ -61,11 +141,20 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     lineHeight: 16,
   },
+  meta: {
+    color: theme.colors.subtle,
+    fontSize: 12,
+    marginTop: theme.spacing.xs,
+  },
   list: {
     gap: theme.spacing.sm,
+    paddingBottom: theme.spacing.lg,
   },
   rowCard: {
     paddingVertical: theme.spacing.sm,
+  },
+  rowPressed: {
+    opacity: 0.9,
   },
   row: {
     flexDirection: "row",

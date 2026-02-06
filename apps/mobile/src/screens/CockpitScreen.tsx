@@ -1,11 +1,65 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { getSupabaseEnvStatus } from "../lib/supabaseClient";
+import {
+  isForbiddenOperationalKpiMetricKey,
+  MetricValueRow,
+  rpcListMetricValues,
+  SnapshotRow,
+} from "../lib/rpc";
 import { theme } from "../theme/theme";
 
-export function CockpitScreen() {
+export function CockpitScreen({
+  snapshot,
+}: {
+  snapshot: SnapshotRow | null;
+}) {
+  const env = getSupabaseEnvStatus();
+  const [metrics, setMetrics] = React.useState<MetricValueRow[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [errorText, setErrorText] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    async function run(snapshotId: string) {
+      setLoading(true);
+      setErrorText(null);
+      try {
+        const data = await rpcListMetricValues(snapshotId);
+        if (!alive) return;
+        setMetrics(data.filter((m) => !isForbiddenOperationalKpiMetricKey(m.metric_key)));
+      } catch (err) {
+        if (!alive) return;
+        setMetrics([]);
+        setErrorText("—");
+        // TODO: Add locked copy for error states to docs/LOCKED_COPY.md.
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    if (!snapshot?.id) {
+      setMetrics([]);
+      setErrorText(null);
+      return () => {
+        alive = false;
+      };
+    }
+
+    if (env.hasUrl && env.hasAnonKey) {
+      void run(snapshot.id);
+    } else {
+      setMetrics([]);
+    }
+
+    return () => {
+      alive = false;
+    };
+  }, [env.hasUrl, env.hasAnonKey, snapshot?.id]);
+
   return (
     <View style={styles.root}>
       <GravityCard>
@@ -13,27 +67,50 @@ export function CockpitScreen() {
           <GravityDot size={10} />
           <Text style={styles.title}>Cockpit</Text>
         </View>
-        <Text style={styles.subtitle}>
-          Snapshot detail placeholder. Values are display-only and currently unset.
-        </Text>
+        <Text style={styles.subtitle}>Snapshot metrics (display-only)</Text>
+        {!snapshot ? (
+          <Text style={styles.meta}>—</Text>
+        ) : (
+          <Text style={styles.meta}>
+            {snapshot.snapshot_month} · {snapshot.snapshot_kind}
+          </Text>
+        )}
+        {!env.hasUrl || !env.hasAnonKey ? (
+          <Text style={styles.meta}>
+            Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
+          </Text>
+        ) : loading ? (
+          <Text style={styles.meta}>Loading…</Text>
+        ) : errorText ? (
+          <Text style={styles.meta}>{errorText}</Text>
+        ) : metrics.length === 0 ? (
+          <Text style={styles.meta}>—</Text>
+        ) : null}
       </GravityCard>
 
-      <View style={styles.grid}>
-        <MetricPlaceholder label="Metric" />
-        <MetricPlaceholder label="Metric" />
-        <MetricPlaceholder label="Metric" />
-        <MetricPlaceholder label="Metric" />
-      </View>
+      <FlatList
+        data={metrics}
+        keyExtractor={(item) => `${item.snapshot_id}:${item.metric_key}`}
+        contentContainerStyle={styles.grid}
+        renderItem={({ item }) => (
+          <MetricValueCard metricKey={item.metric_key} valueText={item.value_text} />
+        )}
+      />
     </View>
   );
 }
 
-function MetricPlaceholder({ label }: { label: string }) {
+function MetricValueCard({
+  metricKey,
+  valueText,
+}: {
+  metricKey: string;
+  valueText: string;
+}) {
   return (
     <GravityCard style={styles.metricCard}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      {/* TODO: Replace with stored snapshot `value_text` once wired (display-only). */}
-      <Text style={styles.metricValue}>—</Text>
+      <Text style={styles.metricLabel}>{metricKey}</Text>
+      <Text style={styles.metricValue}>{valueText || "—"}</Text>
       <Text style={styles.metricMeta}>value_text (display-only)</Text>
     </GravityCard>
   );
@@ -60,10 +137,14 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     lineHeight: 16,
   },
+  meta: {
+    color: theme.colors.subtle,
+    fontSize: 12,
+    marginTop: theme.spacing.xs,
+  },
   grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
     gap: theme.spacing.sm,
+    paddingBottom: theme.spacing.lg,
   },
   metricCard: {
     flexGrow: 1,

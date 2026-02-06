@@ -17,12 +17,14 @@ export type ShellRouteKey = "orbit" | "cockpit";
 type TerminalShellProps = {
   route: ShellRouteKey;
   onRouteChange: (next: ShellRouteKey) => void;
+  selectedSnapshotLabel?: string;
   children: React.ReactNode;
 };
 
 export function TerminalShell({
   route,
   onRouteChange,
+  selectedSnapshotLabel,
   children,
 }: TerminalShellProps) {
   const { width } = useWindowDimensions();
@@ -35,14 +37,14 @@ export function TerminalShell({
           <>
             <LeftRail route={route} onRouteChange={onRouteChange} />
             <View style={styles.center}>
-              <TopBar route={route} />
+              <TopBar route={route} selectedSnapshotLabel={selectedSnapshotLabel} />
               <View style={styles.canvas}>{children}</View>
             </View>
             <RightInspector />
           </>
         ) : (
           <>
-            <TopBar route={route} />
+            <TopBar route={route} selectedSnapshotLabel={selectedSnapshotLabel} />
             <View style={styles.canvas}>{children}</View>
             <BottomNav route={route} onRouteChange={onRouteChange} />
           </>
@@ -52,7 +54,13 @@ export function TerminalShell({
   );
 }
 
-function TopBar({ route }: { route: ShellRouteKey }) {
+function TopBar({
+  route,
+  selectedSnapshotLabel,
+}: {
+  route: ShellRouteKey;
+  selectedSnapshotLabel?: string;
+}) {
   const title = route === "orbit" ? "Orbit" : "Cockpit";
   return (
     <View style={styles.topBar}>
@@ -60,7 +68,9 @@ function TopBar({ route }: { route: ShellRouteKey }) {
         <GravityDot size={10} />
         <Text style={styles.topBarTitle}>{title}</Text>
       </View>
-      <Text style={styles.topBarMeta}>Display-only · "—" placeholders</Text>
+      <Text style={styles.topBarMeta}>
+        {selectedSnapshotLabel ? selectedSnapshotLabel : "—"}
+      </Text>
     </View>
   );
 }
