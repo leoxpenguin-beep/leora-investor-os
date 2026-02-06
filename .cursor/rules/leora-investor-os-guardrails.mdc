@@ -1,0 +1,27 @@
+---
+description: Leora Investor OS guardrails (no derived metrics, locked copy, value_text-only display, allowed sources).
+alwaysApply: true
+---
+
+## Leora Investor OS — Hard Guardrails
+
+- **No derived metrics**: never compute/derive/infer metrics or KPIs. Display only stored snapshot values (e.g. `metric_values.value_text`) per `docs/DATA_CONTRACTS.md`.
+- **Display-only contract**: UI shows `value_text` (or explicitly display-only fields like `summary_text`, `narrative_text`). If missing, render `"—"` and add a TODO nearby. Never invent numbers.
+- **Locked copy**: do not rewrite narratives/Q&A. Only use exact text from `docs/LOCKED_COPY.md`. If needed copy is missing, use `"—"` + TODO to add it to `docs/LOCKED_COPY.md`.
+- **No unsupported operational KPIs**: do not add dashboards/tiles for error rate, design speed, rework %, design-to-production time, or similar.
+- **Notion sources**: only allowed source pages: 06, 07, 08, 09, 10, 11, 18, 19, 21 (see `docs/DATA_CONTRACTS.md`).
+
+## UI Workflows
+
+- For Expo React Native UI tasks, prefer delegating implementation to the project subagent:
+  - `.cursor/agents/leora-ui-builder.md` (UI Builder — Leora Investor OS)
+
+## Architecture Workflows
+
+- For architecture decisions, data contracts, build sequencing, and PR reviews that may BLOCK non-compliant changes, prefer delegating to:
+  - `.cursor/agents/leora-architecture-lead.md` (Architecture Lead — Leora Investor OS)
+
+## Review Workflows
+
+- For diff/PR compliance reviews (no derived metrics, locked copy, allowlisted sources, read-only Supabase, owner-only RLS), prefer delegating to:
+  - `.cursor/agents/leora-guardrails-auditor.md` (Guardrails Auditor — Leora Investor OS)
