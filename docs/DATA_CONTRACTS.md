@@ -154,3 +154,30 @@ select investor_id, snapshot_id, summary_text, narrative_text, created_at, updat
 from public.investor_positions
 where snapshot_id = :snapshot_id;
 ```
+
+### Supabase RPCs (preferred, RLS-respecting)
+
+These RPCs are **read-only** and **SECURITY INVOKER** (they do not bypass RLS). They return raw rows and display-only strings — no aggregation, rollups, or math.
+
+- **`rpc_list_snapshots` → `Snapshot[]`**
+  - Inputs: `p_snapshot_kind?`, `p_snapshot_month?`, `p_project_key?`, `p_limit?`
+  - Returns: raw snapshot rows visible under RLS.
+
+- **`rpc_list_metric_values` → `MetricValue[]`**
+  - Input: `p_snapshot_id`
+  - Returns: `metric_key` + display-only `value_text` rows for that snapshot (visible under RLS).
+
+Example (Supabase JS):
+
+```ts
+// List monthly snapshots (owner-only via RLS)
+const { data: snapshots } = await supabase.rpc("rpc_list_snapshots", {
+  p_snapshot_kind: "monthly",
+  p_limit: 50,
+});
+
+// List metric values for a snapshot (owner-only via RLS)
+const { data: metricValues } = await supabase.rpc("rpc_list_metric_values", {
+  p_snapshot_id: snapshots?.[0]?.id,
+});
+```
