@@ -2,14 +2,29 @@
 
 Canonical schema and usage for Leora Investor OS. All displayed values are stored only (no derived computations).
 
+Explicitly forbidden in code/SQL/UI/LLM outputs:
+- Any derived metric math (ratios, deltas, growth %, totals/averages/rollups)
+- Any IRR/MOIC calculations (store snapshot values as `value_text` if needed; never compute)
+
 ## Tables
 
 ### `public.snapshots`
-| Column      | Type      | Description                    |
-|------------|-----------|--------------------------------|
-| `id`       | uuid (PK) | Snapshot identifier            |
-| `created_at` | timestamptz | When the snapshot was created |
-| `label`    | text      | Optional label                 |
+
+Snapshot rows are **monthly** or **project** snapshots (no derived metrics).
+
+| Column          | Type           | Description |
+|----------------|----------------|-------------|
+| `id`           | uuid (PK)      | Snapshot identifier |
+| `investor_id`  | uuid (FK)      | Owner (`auth.users.id`). **RLS:** `SELECT` only where `auth.uid() = investor_id` |
+| `snapshot_kind` | text          | `monthly` \| `project` |
+| `snapshot_month` | date         | Month bucket (use first day of month convention) |
+| `project_key`  | text           | Required when `snapshot_kind = 'project'` (stable project/company identifier) |
+| `created_at`   | timestamptz    | When the snapshot was created |
+| `label`        | text           | Optional label |
+
+- **Uniqueness**:
+  - One monthly snapshot per `(investor_id, snapshot_month)`
+  - One project snapshot per `(investor_id, project_key, snapshot_month)`
 
 ### `public.metric_values`
 | Column       | Type      | Description                          |
@@ -23,6 +38,8 @@ Canonical schema and usage for Leora Investor OS. All displayed values are store
 
 - Unique on `(snapshot_id, metric_key)`.
 - **Definition of done:** Every displayed value traces to `metric_key` + `snapshot_id` + `source_page`.
+- **RLS:** `SELECT` only when the owning snapshot is visible to the user (owner-only via `snapshots.investor_id`).
+- **Source allowlist:** `source_page` is constrained to `06, 07, 08, 09, 10, 11, 18, 19, 21`.
 
 ### `public.investor_positions`
 | Column         | Type      | Description                          |
@@ -40,7 +57,10 @@ Canonical schema and usage for Leora Investor OS. All displayed values are store
 
 ## Access
 
-- **App (reads):** Supabase **anon** key. SELECT only on `snapshots`, `metric_values`, and (via RLS) own rows in `investor_positions`.
+- **App (reads):** Supabase **anon** key + authenticated user session. All reads are **SELECT-only** and subject to RLS:
+  - `snapshots`: owner-only (`auth.uid() = investor_id`)
+  - `metric_values`: owner-only via snapshot ownership
+  - `investor_positions`: owner-only (`auth.uid() = investor_id`)
 - **Writes:** **SERVICE ROLE** key only in server-side scripts (e.g. snapshot ingest, position upsert). Never expose service role to the client.
 
 ## Notion source pages (V1)
@@ -65,8 +85,14 @@ export type SourcePage =
   | "19"
   | "21";
 
+export type SnapshotKind = "monthly" | "project";
+
 export type Snapshot = {
   id: string;
+  investor_id: string;
+  snapshot_kind: SnapshotKind;
+  snapshot_month: string; // date ISO string (YYYY-MM-DD)
+  project_key: string | null;
   created_at: string; // timestamptz ISO string
   label: string | null;
 };
@@ -97,9 +123,9 @@ export type InvestorPosition = {
   - SQL:
 
 ```sql
-select id, created_at, label
+select id, investor_id, snapshot_kind, snapshot_month, project_key, created_at, label
 from public.snapshots
-order by created_at desc
+order by snapshot_month desc, created_at desc
 limit 50;
 ```
 
