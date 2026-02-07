@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 
 import { CockpitScreen } from "./src/screens/CockpitScreen";
+import { MyPositionScreen } from "./src/screens/MyPositionScreen";
 import { OrbitScreen } from "./src/screens/OrbitScreen";
 import { ShellRouteKey, TerminalShell } from "./src/shell/TerminalShell";
 import { SnapshotRow } from "./src/lib/rpc";
@@ -29,8 +30,10 @@ export default function App() {
               setRoute("cockpit");
             }}
           />
-        ) : (
+        ) : route === "cockpit" ? (
           <CockpitScreen snapshot={selectedSnapshot} />
+        ) : (
+          <MyPositionScreen snapshot={selectedSnapshot} />
         )}
       </TerminalShell>
     </>
