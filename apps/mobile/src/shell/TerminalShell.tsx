@@ -12,7 +12,7 @@ import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
 import { theme } from "../theme/theme";
 
-export type ShellRouteKey = "orbit" | "cockpit";
+export type ShellRouteKey = "orbit" | "cockpit" | "position";
 
 type TerminalShellProps = {
   route: ShellRouteKey;
@@ -61,7 +61,8 @@ function TopBar({
   route: ShellRouteKey;
   selectedSnapshotLabel?: string;
 }) {
-  const title = route === "orbit" ? "Orbit" : "Cockpit";
+  const title =
+    route === "orbit" ? "Orbit" : route === "cockpit" ? "Cockpit" : "My Position";
   return (
     <View style={styles.topBar}>
       <View style={styles.topBarLeft}>
@@ -95,6 +96,11 @@ function LeftRail({
           label="Cockpit"
           active={route === "cockpit"}
           onPress={() => onRouteChange("cockpit")}
+        />
+        <RailItem
+          label="My Position"
+          active={route === "position"}
+          onPress={() => onRouteChange("position")}
         />
       </View>
       <View style={styles.railFooter}>
@@ -139,6 +145,11 @@ function BottomNav({
         label="Cockpit"
         active={route === "cockpit"}
         onPress={() => onRouteChange("cockpit")}
+      />
+      <BottomNavItem
+        label="Position"
+        active={route === "position"}
+        onPress={() => onRouteChange("position")}
       />
     </View>
   );

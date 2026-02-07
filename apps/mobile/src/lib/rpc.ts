@@ -20,6 +20,15 @@ export type MetricValueRow = {
   created_at: string;
 };
 
+export type InvestorPositionRow = {
+  investor_id: string;
+  snapshot_id: string;
+  summary_text: string | null;
+  narrative_text: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ListSnapshotsParams = {
   p_snapshot_kind?: SnapshotKind | null;
   p_snapshot_month?: string | null;
@@ -54,6 +63,20 @@ export async function rpcListMetricValues(
 
   if (error) throw error;
   return (data ?? []) as MetricValueRow[];
+}
+
+export async function rpcGetInvestorPosition(
+  snapshotId: string
+): Promise<InvestorPositionRow | null> {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.rpc("rpc_get_investor_position", {
+    p_snapshot_id: snapshotId,
+  });
+
+  if (error) throw error;
+  const rows = (data ?? []) as InvestorPositionRow[];
+  return rows[0] ?? null;
 }
 
 // Guardrail: do not display unsupported operational KPIs as tiles/lists.
