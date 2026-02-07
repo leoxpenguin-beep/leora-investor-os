@@ -18,9 +18,8 @@ export default function App() {
       <TerminalShell
         route={route}
         onRouteChange={setRoute}
-        selectedSnapshotLabel={
-          selectedSnapshot ? selectedSnapshot.snapshot_month : undefined
-        }
+        selectedSnapshot={selectedSnapshot}
+        onSelectSnapshot={setSelectedSnapshot}
       >
         {route === "orbit" ? (
           <OrbitScreen

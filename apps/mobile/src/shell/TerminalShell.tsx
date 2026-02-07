@@ -10,21 +10,25 @@ import {
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
+import { SnapshotSelector } from "./SnapshotSelector";
 
 export type ShellRouteKey = "orbit" | "cockpit";
 
 type TerminalShellProps = {
   route: ShellRouteKey;
   onRouteChange: (next: ShellRouteKey) => void;
-  selectedSnapshotLabel?: string;
+  selectedSnapshot?: SnapshotRow | null;
+  onSelectSnapshot?: (snapshot: SnapshotRow) => void;
   children: React.ReactNode;
 };
 
 export function TerminalShell({
   route,
   onRouteChange,
-  selectedSnapshotLabel,
+  selectedSnapshot,
+  onSelectSnapshot,
   children,
 }: TerminalShellProps) {
   const { width } = useWindowDimensions();
@@ -37,14 +41,22 @@ export function TerminalShell({
           <>
             <LeftRail route={route} onRouteChange={onRouteChange} />
             <View style={styles.center}>
-              <TopBar route={route} selectedSnapshotLabel={selectedSnapshotLabel} />
+              <TopBar
+                route={route}
+                selectedSnapshot={selectedSnapshot ?? null}
+                onSelectSnapshot={onSelectSnapshot}
+              />
               <View style={styles.canvas}>{children}</View>
             </View>
             <RightInspector />
           </>
         ) : (
           <>
-            <TopBar route={route} selectedSnapshotLabel={selectedSnapshotLabel} />
+            <TopBar
+              route={route}
+              selectedSnapshot={selectedSnapshot ?? null}
+              onSelectSnapshot={onSelectSnapshot}
+            />
             <View style={styles.canvas}>{children}</View>
             <BottomNav route={route} onRouteChange={onRouteChange} />
           </>
@@ -56,10 +68,12 @@ export function TerminalShell({
 
 function TopBar({
   route,
-  selectedSnapshotLabel,
+  selectedSnapshot,
+  onSelectSnapshot,
 }: {
   route: ShellRouteKey;
-  selectedSnapshotLabel?: string;
+  selectedSnapshot: SnapshotRow | null;
+  onSelectSnapshot?: (snapshot: SnapshotRow) => void;
 }) {
   const title = route === "orbit" ? "Orbit" : "Cockpit";
   return (
@@ -68,9 +82,16 @@ function TopBar({
         <GravityDot size={10} />
         <Text style={styles.topBarTitle}>{title}</Text>
       </View>
-      <Text style={styles.topBarMeta}>
-        {selectedSnapshotLabel ? selectedSnapshotLabel : "—"}
-      </Text>
+      {onSelectSnapshot ? (
+        <SnapshotSelector
+          selectedSnapshot={selectedSnapshot}
+          onSelectSnapshot={onSelectSnapshot}
+        />
+      ) : (
+        <Text style={styles.topBarMeta}>
+          {selectedSnapshot ? selectedSnapshot.snapshot_month : "—"}
+        </Text>
+      )}
     </View>
   );
 }
