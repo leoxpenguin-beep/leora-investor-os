@@ -16,6 +16,7 @@ import { SnapshotSelector } from "./SnapshotSelector";
 
 export type ShellRouteKey =
   | "orbit"
+  | "notices"
   | "value_multi"
   | "snapshot_detail"
   | "snapshot_timeline"
@@ -88,6 +89,8 @@ function TopBar({
   const title =
     route === "orbit"
       ? "Orbit"
+      : route === "notices"
+        ? "Notices"
       : route === "value_multi"
         ? "Value"
         : route === "snapshot_detail"
@@ -135,6 +138,11 @@ function LeftRail({
           onPress={() => onRouteChange("orbit")}
         />
         <RailItem
+          label="Notices"
+          active={route === "notices"}
+          onPress={() => onRouteChange("notices")}
+        />
+        <RailItem
           label="Value"
           active={route === "value_multi"}
           onPress={() => onRouteChange("value_multi")}
@@ -151,7 +159,7 @@ function LeftRail({
         />
       </View>
       <View style={styles.railFooter}>
-        <Text style={styles.railFooterText}>Module 9 · Snapshot Timeline</Text>
+        <Text style={styles.railFooterText}>Module 11 · Snapshot Notices</Text>
       </View>
     </View>
   );
@@ -187,6 +195,11 @@ function BottomNav({
         label="Orbit"
         active={route === "orbit"}
         onPress={() => onRouteChange("orbit")}
+      />
+      <BottomNavItem
+        label="Notices"
+        active={route === "notices"}
+        onPress={() => onRouteChange("notices")}
       />
       <BottomNavItem
         label="Value"
