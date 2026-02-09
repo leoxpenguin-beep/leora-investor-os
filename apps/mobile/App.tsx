@@ -5,8 +5,10 @@ import { StyleSheet, Text, View } from "react-native";
 import { GravityCard } from "./src/components/GravityCard";
 import { demoSnapshotIdSet, getMostRecentDemoSnapshot } from "./src/demo/demoData";
 import { useDemoMode } from "./src/demo/demoMode";
+import { setAuditActor } from "./src/lib/auditLog";
 import { CockpitScreen } from "./src/screens/CockpitScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
+import { AuditLogScreen } from "./src/screens/AuditLogScreen";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { DocumentsSourcesScreen } from "./src/screens/DocumentsSourcesScreen";
 import { ExportSharePackScreen } from "./src/screens/ExportSharePackScreen";
@@ -29,6 +31,13 @@ export default function App() {
   );
 
   const lastRealSnapshotRef = React.useRef<SnapshotRow | null>(null);
+
+  React.useEffect(() => {
+    // Option A (client-side log): keep audit events scoped to a single actor within the session.
+    // Clears events when actor changes (e.g., sign-out, different user, or demo mode).
+    const actor = demoModeEnabled ? "demo" : user?.id ?? null;
+    setAuditActor(actor);
+  }, [demoModeEnabled, user?.id]);
 
   React.useEffect(() => {
     if (!demoModeEnabled) {
@@ -106,6 +115,8 @@ export default function App() {
           />
         ) : route === "export_pack" ? (
           <ExportSharePackScreen snapshot={selectedSnapshot} onBack={() => setRoute("snapshot_detail")} />
+        ) : route === "audit" ? (
+          <AuditLogScreen />
         ) : route === "account" ? (
           <AccountScreen
             email={user?.email ?? null}

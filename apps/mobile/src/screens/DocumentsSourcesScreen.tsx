@@ -11,6 +11,7 @@ import {
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
 import { useDemoMode } from "../demo/demoMode";
+import { logAuditEvent } from "../lib/auditLog";
 import { rpcListSnapshotSources, SnapshotRow, SnapshotSourceRow } from "../lib/rpc";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
 import { theme } from "../theme/theme";
@@ -29,6 +30,11 @@ export function DocumentsSourcesScreen({
   const [sources, setSources] = React.useState<SnapshotSourceRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [errorText, setErrorText] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!snapshot?.id) return;
+    logAuditEvent({ event_type: "OPEN_SOURCES", snapshot });
+  }, [snapshot?.id]);
 
   React.useEffect(() => {
     let alive = true;
@@ -123,13 +129,13 @@ export function DocumentsSourcesScreen({
         data={sources}
         keyExtractor={(item, idx) => `${idx}:${item.source_type}:${item.title}:${item.url ?? ""}`}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => <SourceCard item={item} />}
+        renderItem={({ item }) => <SourceCard item={item} snapshot={snapshot} />}
       />
     </View>
   );
 }
 
-function SourceCard({ item }: { item: SnapshotSourceRow }) {
+function SourceCard({ item, snapshot }: { item: SnapshotSourceRow; snapshot: SnapshotRow | null }) {
   const title = item.title?.trim() ? item.title : "—";
   const sourceType = item.source_type?.trim() ? item.source_type : "—";
   const noteText = item.note?.trim() ? item.note : "—";
@@ -154,6 +160,7 @@ function SourceCard({ item }: { item: SnapshotSourceRow }) {
           onPress={async () => {
             if (!canOpen || !item.url) return;
             try {
+              logAuditEvent({ event_type: "OPEN_DOCUMENT", snapshot, note: title });
               await Linking.openURL(item.url);
             } catch {
               // TODO: Add locked copy for open-url failures to docs/LOCKED_COPY.md.
