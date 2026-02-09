@@ -27,6 +27,7 @@ type TerminalShellProps = {
   onRouteChange: (next: ShellRouteKey) => void;
   selectedSnapshot?: SnapshotRow | null;
   onSelectSnapshot?: (snapshot: SnapshotRow) => void;
+  onSignOut?: () => void;
   children: React.ReactNode;
 };
 
@@ -35,6 +36,7 @@ export function TerminalShell({
   onRouteChange,
   selectedSnapshot,
   onSelectSnapshot,
+  onSignOut,
   children,
 }: TerminalShellProps) {
   const { width } = useWindowDimensions();
@@ -52,6 +54,7 @@ export function TerminalShell({
                 onRouteChange={onRouteChange}
                 selectedSnapshot={selectedSnapshot ?? null}
                 onSelectSnapshot={onSelectSnapshot}
+                onSignOut={onSignOut}
               />
               <View style={styles.canvas}>{children}</View>
             </View>
@@ -64,6 +67,7 @@ export function TerminalShell({
               onRouteChange={onRouteChange}
               selectedSnapshot={selectedSnapshot ?? null}
               onSelectSnapshot={onSelectSnapshot}
+              onSignOut={onSignOut}
             />
             <View style={styles.canvas}>{children}</View>
             <BottomNav route={route} onRouteChange={onRouteChange} />
@@ -79,11 +83,13 @@ function TopBar({
   onRouteChange,
   selectedSnapshot,
   onSelectSnapshot,
+  onSignOut,
 }: {
   route: ShellRouteKey;
   onRouteChange: (next: ShellRouteKey) => void;
   selectedSnapshot: SnapshotRow | null;
   onSelectSnapshot?: (snapshot: SnapshotRow) => void;
+  onSignOut?: () => void;
 }) {
   const title =
     route === "orbit"
@@ -103,17 +109,31 @@ function TopBar({
         <GravityDot size={10} />
         <Text style={styles.topBarTitle}>{title}</Text>
       </View>
-      {onSelectSnapshot ? (
-        <SnapshotSelector
-          selectedSnapshot={selectedSnapshot}
-          onSelectSnapshot={onSelectSnapshot}
-          onOpenSnapshotDetail={() => onRouteChange("snapshot_detail")}
-        />
-      ) : (
-        <Text style={styles.topBarMeta}>
-          {selectedSnapshot ? selectedSnapshot.snapshot_month : "—"}
-        </Text>
-      )}
+      <View style={styles.topBarRight}>
+        {onSelectSnapshot ? (
+          <SnapshotSelector
+            selectedSnapshot={selectedSnapshot}
+            onSelectSnapshot={onSelectSnapshot}
+            onOpenSnapshotDetail={() => onRouteChange("snapshot_detail")}
+          />
+        ) : (
+          <Text style={styles.topBarMeta}>
+            {selectedSnapshot ? selectedSnapshot.snapshot_month : "—"}
+          </Text>
+        )}
+
+        {onSignOut ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+            onPress={onSignOut}
+            style={({ pressed }) => [styles.signOutButton, pressed && styles.signOutButtonPressed]}
+          >
+            {/* TODO: Use locked copy for this label in docs/LOCKED_COPY.md. */}
+            <Text style={styles.signOutText}>Sign out</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -298,6 +318,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing.sm,
   },
+  topBarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+  },
   topBarTitle: {
     color: theme.colors.text,
     fontSize: 16,
@@ -307,6 +332,22 @@ const styles = StyleSheet.create({
   topBarMeta: {
     color: theme.colors.muted,
     fontSize: 12,
+  },
+  signOutButton: {
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.panel,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  signOutButtonPressed: {
+    opacity: 0.9,
+  },
+  signOutText: {
+    color: theme.colors.muted,
+    fontSize: 12,
+    fontWeight: "800",
   },
 
   leftRail: {
