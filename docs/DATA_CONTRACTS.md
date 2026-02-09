@@ -69,6 +69,23 @@ Snapshot rows are **monthly** or **project** snapshots (no derived metrics).
 - **RLS:** `SELECT` only when the owning snapshot is visible to the user (owner-only via `snapshots.investor_id`).
 - No INSERT/UPDATE/DELETE from app; writes via server scripts with SERVICE ROLE.
 
+### `public.snapshot_timeline_events`
+| Column         | Type      | Description                          |
+|----------------|-----------|--------------------------------------|
+| `id`           | uuid (PK) | Row id                               |
+| `snapshot_id`  | uuid (FK) | References `snapshots.id`            |
+| `event_key`    | text      | Display-only event identifier        |
+| `event_date`   | date      | Display-only event date (optional)   |
+| `title`        | text      | Display-only event title             |
+| `detail`       | text      | Display-only event detail (verbatim) |
+| `source_page`  | text      | Notion source page (allowlist only)  |
+| `created_at`   | timestamptz | Set on insert                     |
+
+- Unique on `(snapshot_id, event_key)`.
+- **RLS:** `SELECT` only when the owning snapshot is visible to the user (owner-only via `snapshots.investor_id`).
+- **Source allowlist:** `source_page` is constrained to `06, 07, 08, 09, 10, 11, 18, 19, 21`.
+- No INSERT/UPDATE/DELETE from app; writes via server scripts with SERVICE ROLE.
+
 ## Access
 
 - **App (reads):** Supabase **anon** key + authenticated user session. All reads are **SELECT-only** and subject to RLS:
@@ -76,6 +93,7 @@ Snapshot rows are **monthly** or **project** snapshots (no derived metrics).
   - `metric_values`: owner-only via snapshot ownership
   - `investor_positions`: owner-only (`auth.uid() = investor_id`)
   - `snapshot_sources`: owner-only via snapshot ownership
+  - `snapshot_timeline_events`: owner-only via snapshot ownership
 - **Writes:** **SERVICE ROLE** key only in server-side scripts (e.g. snapshot ingest, position upsert). Never expose service role to the client.
 
 ## Notion source pages (V1)
@@ -135,6 +153,15 @@ export type SnapshotSource = {
   url: string | null;
   note: string | null;
 };
+
+export type SnapshotTimelineEvent = {
+  event_key: string;
+  event_date: string | null; // date ISO string (YYYY-MM-DD) or null
+  title: string | null;
+  detail: string | null;
+  source_page: SourcePage;
+  created_at: string; // timestamptz ISO string
+};
 ```
 
 ### Read operations (minimum set)
@@ -189,6 +216,18 @@ where snapshot_id = :snapshot_id
 order by created_at desc, title asc;
 ```
 
+- **List snapshot timeline events**
+  - Input: `snapshot_id`
+  - Output: `SnapshotTimelineEvent[]` (display-only rows)
+  - SQL:
+
+```sql
+select event_key, event_date, title, detail, source_page, created_at
+from public.snapshot_timeline_events
+where snapshot_id = :snapshot_id
+order by event_date desc nulls last, created_at desc, event_key asc;
+```
+
 ### Supabase RPCs (preferred, RLS-respecting)
 
 These RPCs are **read-only** and **SECURITY INVOKER** (they do not bypass RLS). They return raw rows and display-only strings — no aggregation, rollups, or math.
@@ -204,6 +243,10 @@ These RPCs are **read-only** and **SECURITY INVOKER** (they do not bypass RLS). 
 - **`rpc_list_snapshot_sources` → `SnapshotSource[]`**
   - Input: `p_snapshot_id`
   - Returns: display-only `source_type`, `title`, `url`, `note` rows for that snapshot (visible under RLS).
+
+- **`rpc_list_snapshot_timeline_events` → `SnapshotTimelineEvent[]`**
+  - Input: `p_snapshot_id`
+  - Returns: display-only `event_key`, `event_date`, `title`, `detail`, `source_page` rows for that snapshot (visible under RLS).
 
 Example (Supabase JS):
 
