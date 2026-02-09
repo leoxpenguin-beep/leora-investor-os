@@ -3,6 +3,7 @@ import React from "react";
 
 import { CockpitScreen } from "./src/screens/CockpitScreen";
 import { OrbitScreen } from "./src/screens/OrbitScreen";
+import { ValueMultiSnapshotsScreen } from "./src/screens/ValueMultiSnapshotsScreen";
 import { ShellRouteKey, TerminalShell } from "./src/shell/TerminalShell";
 import { SnapshotRow } from "./src/lib/rpc";
 
@@ -28,8 +29,13 @@ export default function App() {
               setRoute("cockpit");
             }}
           />
-        ) : (
+        ) : route === "cockpit" ? (
           <CockpitScreen snapshot={selectedSnapshot} />
+        ) : (
+          <ValueMultiSnapshotsScreen
+            selectedSnapshot={selectedSnapshot}
+            onSelectSnapshot={setSelectedSnapshot}
+          />
         )}
       </TerminalShell>
     </>
