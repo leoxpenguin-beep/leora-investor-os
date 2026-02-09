@@ -5,6 +5,7 @@ import { CockpitScreen } from "./src/screens/CockpitScreen";
 import { DocumentsSourcesScreen } from "./src/screens/DocumentsSourcesScreen";
 import { OrbitScreen } from "./src/screens/OrbitScreen";
 import { SnapshotDetailScreen } from "./src/screens/SnapshotDetailScreen";
+import { SnapshotNoticesScreen } from "./src/screens/SnapshotNoticesScreen";
 import { SnapshotTimelineScreen } from "./src/screens/SnapshotTimelineScreen";
 import { ValueMultiSnapshotsScreen } from "./src/screens/ValueMultiSnapshotsScreen";
 import { ShellRouteKey, TerminalShell } from "./src/shell/TerminalShell";
@@ -31,6 +32,12 @@ export default function App() {
               setSelectedSnapshot(snapshot);
               setRoute("cockpit");
             }}
+          />
+        ) : route === "notices" ? (
+          <SnapshotNoticesScreen
+            selectedSnapshot={selectedSnapshot}
+            onSelectSnapshot={setSelectedSnapshot}
+            onOpenSnapshotDetail={() => setRoute("snapshot_detail")}
           />
         ) : route === "value_multi" ? (
           <ValueMultiSnapshotsScreen
