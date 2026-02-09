@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-nati
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
 import { useDemoMode } from "../demo/demoMode";
+import { logAuditEvent } from "../lib/auditLog";
 import {
   InvestorPositionRow,
   isForbiddenOperationalKpiMetricKey,
@@ -42,6 +43,11 @@ export function ExportSharePackScreen({
   const [sourcesErrorText, setSourcesErrorText] = React.useState<string | null>(null);
 
   const [actionMeta, setActionMeta] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!snapshot?.id) return;
+    logAuditEvent({ event_type: "EXPORT_PACK", snapshot, note: "Open" });
+  }, [snapshot?.id]);
 
   React.useEffect(() => {
     let alive = true;
@@ -168,6 +174,9 @@ export function ExportSharePackScreen({
     if (!canAct) return;
     setActionMeta(null);
     try {
+      if (snapshot?.id) {
+        logAuditEvent({ event_type: "EXPORT_PACK", snapshot, note: "Copy Pack" });
+      }
       await Clipboard.setStringAsync(packText);
       // TODO: Use locked copy for this success message in docs/LOCKED_COPY.md.
       setActionMeta("Copied.");
@@ -181,6 +190,9 @@ export function ExportSharePackScreen({
     if (!canAct) return;
     setActionMeta(null);
     try {
+      if (snapshot?.id) {
+        logAuditEvent({ event_type: "EXPORT_PACK", snapshot, note: "Share" });
+      }
       await Share.share({ message: packText });
     } catch {
       setActionMeta("—");

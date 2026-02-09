@@ -10,6 +10,7 @@ import {
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
 import { useDemoMode } from "../demo/demoMode";
+import { logAuditEvent } from "../lib/auditLog";
 import {
   InvestorPositionRow,
   isForbiddenOperationalKpiMetricKey,
@@ -48,6 +49,11 @@ export function SnapshotDetailScreen({
   const [metricsLoading, setMetricsLoading] = React.useState(false);
   const [positionErrorText, setPositionErrorText] = React.useState<string | null>(null);
   const [metricsErrorText, setMetricsErrorText] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!snapshot?.id) return;
+    logAuditEvent({ event_type: "VIEW_SNAPSHOT", snapshot });
+  }, [snapshot?.id]);
 
   React.useEffect(() => {
     let alive = true;

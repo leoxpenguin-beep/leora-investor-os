@@ -18,6 +18,7 @@ export type ShellRouteKey =
   | "orbit"
   | "value_multi"
   | "snapshot_detail"
+  | "audit"
   | "account"
   | "export_pack"
   | "snapshot_timeline"
@@ -100,6 +101,8 @@ function TopBar({
         ? "Value"
         : route === "snapshot_detail"
           ? "Snapshot Detail"
+        : route === "audit"
+          ? "Audit Log"
         : route === "account"
           ? "Account"
         : route === "export_pack"
@@ -167,6 +170,11 @@ function LeftRail({
           onPress={() => onRouteChange("cockpit")}
         />
         <RailItem
+          label="Audit Log"
+          active={route === "audit"}
+          onPress={() => onRouteChange("audit")}
+        />
+        <RailItem
           label="Account"
           active={route === "account"}
           onPress={() => onRouteChange("account")}
@@ -224,6 +232,11 @@ function BottomNav({
         label="Cockpit"
         active={route === "cockpit"}
         onPress={() => onRouteChange("cockpit")}
+      />
+      <BottomNavItem
+        label="Audit Log"
+        active={route === "audit"}
+        onPress={() => onRouteChange("audit")}
       />
       <BottomNavItem
         label="Account"
