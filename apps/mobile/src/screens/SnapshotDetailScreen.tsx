@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,8 +27,10 @@ type MetricGroup = {
 
 export function SnapshotDetailScreen({
   snapshot,
+  onOpenDocumentsSources,
 }: {
   snapshot: SnapshotRow | null;
+  onOpenDocumentsSources: () => void;
 }) {
   const env = getSupabaseEnvStatus();
 
@@ -129,6 +132,26 @@ export function SnapshotDetailScreen({
         <Text style={styles.meta}>
           {month} · {kind} · {projectKey}
         </Text>
+
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Documents and Sources"
+            disabled={!snapshot}
+            onPress={() => {
+              if (!snapshot) return;
+              onOpenDocumentsSources();
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              !snapshot && styles.actionButtonDisabled,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            {/* TODO: Use locked copy for this label in docs/LOCKED_COPY.md. */}
+            <Text style={styles.actionButtonText}>Documents &amp; Sources</Text>
+          </Pressable>
+        </View>
 
         {!snapshot ? (
           <Text style={styles.meta}>—</Text>
@@ -256,6 +279,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: theme.spacing.xs,
     lineHeight: 16,
+  },
+  actions: {
+    marginTop: theme.spacing.sm,
+    flexDirection: "row",
+  },
+  actionButton: {
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.panel,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
+  },
+  actionButtonPressed: {
+    opacity: 0.9,
+  },
+  actionButtonText: {
+    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: "800",
   },
 
   sectionTitle: {

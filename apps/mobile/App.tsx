@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 
 import { CockpitScreen } from "./src/screens/CockpitScreen";
+import { DocumentsSourcesScreen } from "./src/screens/DocumentsSourcesScreen";
 import { OrbitScreen } from "./src/screens/OrbitScreen";
 import { SnapshotDetailScreen } from "./src/screens/SnapshotDetailScreen";
 import { ValueMultiSnapshotsScreen } from "./src/screens/ValueMultiSnapshotsScreen";
@@ -37,7 +38,15 @@ export default function App() {
             onOpenSnapshotDetail={() => setRoute("snapshot_detail")}
           />
         ) : route === "snapshot_detail" ? (
-          <SnapshotDetailScreen snapshot={selectedSnapshot} />
+          <SnapshotDetailScreen
+            snapshot={selectedSnapshot}
+            onOpenDocumentsSources={() => setRoute("documents_sources")}
+          />
+        ) : route === "documents_sources" ? (
+          <DocumentsSourcesScreen
+            snapshot={selectedSnapshot}
+            onBack={() => setRoute("snapshot_detail")}
+          />
         ) : (
           <CockpitScreen snapshot={selectedSnapshot} />
         )}

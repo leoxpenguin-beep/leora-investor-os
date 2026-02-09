@@ -55,12 +55,27 @@ Snapshot rows are **monthly** or **project** snapshots (no derived metrics).
 - Unique on `(investor_id, snapshot_id)`.
 - **RLS:** `SELECT` only where `auth.uid() = investor_id`. No INSERT/UPDATE/DELETE from app; writes via server scripts with SERVICE ROLE.
 
+### `public.snapshot_sources`
+| Column         | Type      | Description                          |
+|----------------|-----------|--------------------------------------|
+| `id`           | uuid (PK) | Row id                               |
+| `snapshot_id`  | uuid (FK) | References `snapshots.id`            |
+| `source_type`  | text      | **Display-only** source type label   |
+| `title`        | text      | **Display-only** document title      |
+| `url`          | text      | **Display-only** URL (optional)      |
+| `note`         | text      | **Display-only** note (verbatim; optional) |
+| `created_at`   | timestamptz | Set on insert                     |
+
+- **RLS:** `SELECT` only when the owning snapshot is visible to the user (owner-only via `snapshots.investor_id`).
+- No INSERT/UPDATE/DELETE from app; writes via server scripts with SERVICE ROLE.
+
 ## Access
 
 - **App (reads):** Supabase **anon** key + authenticated user session. All reads are **SELECT-only** and subject to RLS:
   - `snapshots`: owner-only (`auth.uid() = investor_id`)
   - `metric_values`: owner-only via snapshot ownership
   - `investor_positions`: owner-only (`auth.uid() = investor_id`)
+  - `snapshot_sources`: owner-only via snapshot ownership
 - **Writes:** **SERVICE ROLE** key only in server-side scripts (e.g. snapshot ingest, position upsert). Never expose service role to the client.
 
 ## Notion source pages (V1)
@@ -113,6 +128,13 @@ export type InvestorPosition = {
   created_at: string; // timestamptz ISO string
   updated_at: string; // timestamptz ISO string
 };
+
+export type SnapshotSource = {
+  source_type: string;
+  title: string;
+  url: string | null;
+  note: string | null;
+};
 ```
 
 ### Read operations (minimum set)
@@ -155,6 +177,18 @@ from public.investor_positions
 where snapshot_id = :snapshot_id;
 ```
 
+- **List snapshot sources (documents)**
+  - Input: `snapshot_id`
+  - Output: `SnapshotSource[]` (display-only rows)
+  - SQL:
+
+```sql
+select source_type, title, url, note
+from public.snapshot_sources
+where snapshot_id = :snapshot_id
+order by created_at desc, title asc;
+```
+
 ### Supabase RPCs (preferred, RLS-respecting)
 
 These RPCs are **read-only** and **SECURITY INVOKER** (they do not bypass RLS). They return raw rows and display-only strings — no aggregation, rollups, or math.
@@ -167,6 +201,10 @@ These RPCs are **read-only** and **SECURITY INVOKER** (they do not bypass RLS). 
   - Input: `p_snapshot_id`
   - Returns: `metric_key` + display-only `value_text` rows for that snapshot (visible under RLS).
 
+- **`rpc_list_snapshot_sources` → `SnapshotSource[]`**
+  - Input: `p_snapshot_id`
+  - Returns: display-only `source_type`, `title`, `url`, `note` rows for that snapshot (visible under RLS).
+
 Example (Supabase JS):
 
 ```ts
@@ -178,6 +216,11 @@ const { data: snapshots } = await supabase.rpc("rpc_list_snapshots", {
 
 // List metric values for a snapshot (owner-only via RLS)
 const { data: metricValues } = await supabase.rpc("rpc_list_metric_values", {
+  p_snapshot_id: snapshots?.[0]?.id,
+});
+
+// List snapshot sources/documents for a snapshot (owner-only via RLS)
+const { data: snapshotSources } = await supabase.rpc("rpc_list_snapshot_sources", {
   p_snapshot_id: snapshots?.[0]?.id,
 });
 ```
