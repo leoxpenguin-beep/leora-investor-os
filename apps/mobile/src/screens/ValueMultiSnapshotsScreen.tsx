@@ -28,9 +28,11 @@ type MetricsState =
 export function ValueMultiSnapshotsScreen({
   selectedSnapshot,
   onSelectSnapshot,
+  onOpenSnapshotDetail,
 }: {
   selectedSnapshot: SnapshotRow | null;
   onSelectSnapshot: (snapshot: SnapshotRow) => void;
+  onOpenSnapshotDetail: () => void;
 }) {
   const env = getSupabaseEnvStatus();
 
@@ -142,7 +144,10 @@ export function ValueMultiSnapshotsScreen({
               active={isActive}
               expanded={isExpanded}
               metricsState={metricsState}
-              onSetActive={() => onSelectSnapshot(item)}
+              onOpenDetail={() => {
+                onSelectSnapshot(item);
+                onOpenSnapshotDetail();
+              }}
               onToggleExpand={() => {
                 const next = !isExpanded;
                 setExpandedIds((prev) => ({ ...prev, [item.id]: next }));
@@ -161,14 +166,14 @@ function SnapshotRowCard({
   active,
   expanded,
   metricsState,
-  onSetActive,
+  onOpenDetail,
   onToggleExpand,
 }: {
   snapshot: SnapshotRow;
   active: boolean;
   expanded: boolean;
   metricsState: MetricsState;
-  onSetActive: () => void;
+  onOpenDetail: () => void;
   onToggleExpand: () => void;
 }) {
   return (
@@ -176,8 +181,8 @@ function SnapshotRowCard({
       <View style={styles.rowTop}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Set active snapshot"
-          onPress={onSetActive}
+          accessibilityLabel="Open Snapshot Detail"
+          onPress={onOpenDetail}
           style={({ pressed }) => [styles.rowMain, pressed && styles.rowPressed]}
         >
           <Text style={styles.rowMonth}>{snapshot.snapshot_month}</Text>

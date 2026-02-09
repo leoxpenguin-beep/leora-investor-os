@@ -14,7 +14,7 @@ import { SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
 import { SnapshotSelector } from "./SnapshotSelector";
 
-export type ShellRouteKey = "orbit" | "value_multi" | "cockpit";
+export type ShellRouteKey = "orbit" | "value_multi" | "snapshot_detail" | "cockpit";
 
 type TerminalShellProps = {
   route: ShellRouteKey;
@@ -43,6 +43,7 @@ export function TerminalShell({
             <View style={styles.center}>
               <TopBar
                 route={route}
+                onRouteChange={onRouteChange}
                 selectedSnapshot={selectedSnapshot ?? null}
                 onSelectSnapshot={onSelectSnapshot}
               />
@@ -54,6 +55,7 @@ export function TerminalShell({
           <>
             <TopBar
               route={route}
+              onRouteChange={onRouteChange}
               selectedSnapshot={selectedSnapshot ?? null}
               onSelectSnapshot={onSelectSnapshot}
             />
@@ -68,15 +70,23 @@ export function TerminalShell({
 
 function TopBar({
   route,
+  onRouteChange,
   selectedSnapshot,
   onSelectSnapshot,
 }: {
   route: ShellRouteKey;
+  onRouteChange: (next: ShellRouteKey) => void;
   selectedSnapshot: SnapshotRow | null;
   onSelectSnapshot?: (snapshot: SnapshotRow) => void;
 }) {
   const title =
-    route === "orbit" ? "Orbit" : route === "cockpit" ? "Cockpit" : "Value";
+    route === "orbit"
+      ? "Orbit"
+      : route === "value_multi"
+        ? "Value"
+        : route === "snapshot_detail"
+          ? "Snapshot Detail"
+          : "Cockpit";
   return (
     <View style={styles.topBar}>
       <View style={styles.topBarLeft}>
@@ -87,6 +97,7 @@ function TopBar({
         <SnapshotSelector
           selectedSnapshot={selectedSnapshot}
           onSelectSnapshot={onSelectSnapshot}
+          onOpenSnapshotDetail={() => onRouteChange("snapshot_detail")}
         />
       ) : (
         <Text style={styles.topBarMeta}>
@@ -119,13 +130,18 @@ function LeftRail({
           onPress={() => onRouteChange("value_multi")}
         />
         <RailItem
+          label="Detail"
+          active={route === "snapshot_detail"}
+          onPress={() => onRouteChange("snapshot_detail")}
+        />
+        <RailItem
           label="Cockpit"
           active={route === "cockpit"}
           onPress={() => onRouteChange("cockpit")}
         />
       </View>
       <View style={styles.railFooter}>
-        <Text style={styles.railFooterText}>Module 6 · Value (multiple snapshots)</Text>
+        <Text style={styles.railFooterText}>Module 7 · Snapshot Detail</Text>
       </View>
     </View>
   );
@@ -166,6 +182,11 @@ function BottomNav({
         label="Value"
         active={route === "value_multi"}
         onPress={() => onRouteChange("value_multi")}
+      />
+      <BottomNavItem
+        label="Detail"
+        active={route === "snapshot_detail"}
+        onPress={() => onRouteChange("snapshot_detail")}
       />
       <BottomNavItem
         label="Cockpit"
