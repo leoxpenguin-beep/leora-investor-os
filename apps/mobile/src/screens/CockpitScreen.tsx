@@ -3,6 +3,7 @@ import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { useDemoMode } from "../demo/demoMode";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
 import {
   isForbiddenOperationalKpiMetricKey,
@@ -18,6 +19,8 @@ export function CockpitScreen({
   snapshot: SnapshotRow | null;
 }) {
   const env = getSupabaseEnvStatus();
+  const { demoModeEnabled } = useDemoMode();
+  const isEnabled = demoModeEnabled || (env.hasUrl && env.hasAnonKey);
   const [metrics, setMetrics] = React.useState<MetricValueRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [errorText, setErrorText] = React.useState<string | null>(null);
@@ -49,7 +52,8 @@ export function CockpitScreen({
       };
     }
 
-    if (env.hasUrl && env.hasAnonKey) {
+    // Allow demo mode to run even without Supabase env.
+    if (isEnabled) {
       void run(snapshot.id);
     } else {
       setMetrics([]);
@@ -58,7 +62,7 @@ export function CockpitScreen({
     return () => {
       alive = false;
     };
-  }, [env.hasUrl, env.hasAnonKey, snapshot?.id]);
+  }, [env.hasUrl, env.hasAnonKey, isEnabled, snapshot?.id]);
 
   return (
     <View style={styles.root}>
@@ -75,7 +79,9 @@ export function CockpitScreen({
             {snapshot.snapshot_month} · {snapshot.snapshot_kind}
           </Text>
         )}
-        {!env.hasUrl || !env.hasAnonKey ? (
+        {demoModeEnabled ? (
+          <Text style={styles.meta}>Demo Mode: local seed metrics.</Text>
+        ) : !env.hasUrl || !env.hasAnonKey ? (
           <Text style={styles.meta}>
             Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
           </Text>

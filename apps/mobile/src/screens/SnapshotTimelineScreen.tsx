@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { useDemoMode } from "../demo/demoMode";
 import {
   rpcListSnapshotTimelineEvents,
   SnapshotRow,
@@ -19,6 +20,8 @@ export function SnapshotTimelineScreen({
   onBack?: () => void;
 }) {
   const env = getSupabaseEnvStatus();
+  const { demoModeEnabled } = useDemoMode();
+  const isEnabled = demoModeEnabled || (env.hasUrl && env.hasAnonKey);
 
   const [events, setEvents] = React.useState<SnapshotTimelineEventRow[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -53,7 +56,8 @@ export function SnapshotTimelineScreen({
       };
     }
 
-    if (env.hasUrl && env.hasAnonKey) {
+    // Allow demo mode to run even without Supabase env.
+    if (isEnabled) {
       void run(snapshot.id);
     } else {
       setEvents([]);
@@ -62,7 +66,7 @@ export function SnapshotTimelineScreen({
     return () => {
       alive = false;
     };
-  }, [env.hasUrl, env.hasAnonKey, snapshot?.id]);
+  }, [env.hasUrl, env.hasAnonKey, isEnabled, snapshot?.id]);
 
   const projectKey = snapshot?.project_key ?? "—";
   const month = snapshot?.snapshot_month ?? "—";
@@ -95,6 +99,8 @@ export function SnapshotTimelineScreen({
 
         {!snapshot ? (
           <Text style={styles.meta}>—</Text>
+        ) : demoModeEnabled ? (
+          <Text style={styles.meta}>Demo Mode: timeline events may be empty.</Text>
         ) : !env.hasUrl || !env.hasAnonKey ? (
           <Text style={styles.meta}>
             Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY

@@ -10,6 +10,7 @@ import {
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { useDemoMode } from "../demo/demoMode";
 import { rpcListSnapshotSources, SnapshotRow, SnapshotSourceRow } from "../lib/rpc";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
 import { theme } from "../theme/theme";
@@ -22,6 +23,8 @@ export function DocumentsSourcesScreen({
   onBack?: () => void;
 }) {
   const env = getSupabaseEnvStatus();
+  const { demoModeEnabled } = useDemoMode();
+  const isEnabled = demoModeEnabled || (env.hasUrl && env.hasAnonKey);
 
   const [sources, setSources] = React.useState<SnapshotSourceRow[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -56,7 +59,8 @@ export function DocumentsSourcesScreen({
       };
     }
 
-    if (env.hasUrl && env.hasAnonKey) {
+    // Allow demo mode to run even without Supabase env.
+    if (isEnabled) {
       void run(snapshot.id);
     } else {
       setSources([]);
@@ -65,7 +69,7 @@ export function DocumentsSourcesScreen({
     return () => {
       alive = false;
     };
-  }, [env.hasUrl, env.hasAnonKey, snapshot?.id]);
+  }, [env.hasUrl, env.hasAnonKey, isEnabled, snapshot?.id]);
 
   const projectKey = snapshot?.project_key ?? "—";
   const month = snapshot?.snapshot_month ?? "—";
@@ -98,6 +102,8 @@ export function DocumentsSourcesScreen({
 
         {!snapshot ? (
           <Text style={styles.meta}>—</Text>
+        ) : demoModeEnabled ? (
+          <Text style={styles.meta}>Demo Mode: local seed sources.</Text>
         ) : !env.hasUrl || !env.hasAnonKey ? (
           <Text style={styles.meta}>
             Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY

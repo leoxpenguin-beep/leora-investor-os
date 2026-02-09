@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-nati
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { useDemoMode } from "../demo/demoMode";
 import {
   InvestorPositionRow,
   isForbiddenOperationalKpiMetricKey,
@@ -25,6 +26,8 @@ export function ExportSharePackScreen({
   onBack?: () => void;
 }) {
   const env = getSupabaseEnvStatus();
+  const { demoModeEnabled } = useDemoMode();
+  const isEnabled = demoModeEnabled || (env.hasUrl && env.hasAnonKey);
 
   const [position, setPosition] = React.useState<InvestorPositionRow | null>(null);
   const [metrics, setMetrics] = React.useState<MetricValueRow[]>([]);
@@ -104,7 +107,8 @@ export function ExportSharePackScreen({
       };
     }
 
-    if (env.hasUrl && env.hasAnonKey) {
+    // Allow demo mode to run even without Supabase env.
+    if (isEnabled) {
       void run(snapshot.id);
     } else {
       setPosition(null);
@@ -115,7 +119,7 @@ export function ExportSharePackScreen({
     return () => {
       alive = false;
     };
-  }, [env.hasUrl, env.hasAnonKey, snapshot?.id]);
+  }, [env.hasUrl, env.hasAnonKey, isEnabled, snapshot?.id]);
 
   const projectKey = snapshot?.project_key ?? "—";
   const month = snapshot?.snapshot_month ?? "—";
@@ -158,7 +162,7 @@ export function ExportSharePackScreen({
     });
   }, [kind, month, narrativeText, projectKey, sortedMetrics, sortedSources, summaryText]);
 
-  const canAct = Boolean(snapshot?.id && env.hasUrl && env.hasAnonKey);
+  const canAct = Boolean(snapshot?.id && (demoModeEnabled || (env.hasUrl && env.hasAnonKey)));
 
   async function handleCopyPack() {
     if (!canAct) return;
@@ -247,6 +251,8 @@ export function ExportSharePackScreen({
 
         {!snapshot ? (
           <Text style={styles.meta}>—</Text>
+        ) : demoModeEnabled ? (
+          <Text style={styles.meta}>Demo Mode: local seed investor pack.</Text>
         ) : !env.hasUrl || !env.hasAnonKey ? (
           <Text style={styles.meta}>
             Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY

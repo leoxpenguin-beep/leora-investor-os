@@ -29,6 +29,7 @@ type TerminalShellProps = {
   onRouteChange: (next: ShellRouteKey) => void;
   selectedSnapshot?: SnapshotRow | null;
   onSelectSnapshot?: (snapshot: SnapshotRow) => void;
+  demoModeEnabled?: boolean;
   children: React.ReactNode;
 };
 
@@ -37,6 +38,7 @@ export function TerminalShell({
   onRouteChange,
   selectedSnapshot,
   onSelectSnapshot,
+  demoModeEnabled,
   children,
 }: TerminalShellProps) {
   const { width } = useWindowDimensions();
@@ -54,6 +56,7 @@ export function TerminalShell({
                 onRouteChange={onRouteChange}
                 selectedSnapshot={selectedSnapshot ?? null}
                 onSelectSnapshot={onSelectSnapshot}
+                demoModeEnabled={demoModeEnabled ?? false}
               />
               <View style={styles.canvas}>{children}</View>
             </View>
@@ -66,6 +69,7 @@ export function TerminalShell({
               onRouteChange={onRouteChange}
               selectedSnapshot={selectedSnapshot ?? null}
               onSelectSnapshot={onSelectSnapshot}
+              demoModeEnabled={demoModeEnabled ?? false}
             />
             <View style={styles.canvas}>{children}</View>
             <BottomNav route={route} onRouteChange={onRouteChange} />
@@ -81,11 +85,13 @@ function TopBar({
   onRouteChange,
   selectedSnapshot,
   onSelectSnapshot,
+  demoModeEnabled,
 }: {
   route: ShellRouteKey;
   onRouteChange: (next: ShellRouteKey) => void;
   selectedSnapshot: SnapshotRow | null;
   onSelectSnapshot?: (snapshot: SnapshotRow) => void;
+  demoModeEnabled: boolean;
 }) {
   const title =
     route === "orbit"
@@ -108,6 +114,11 @@ function TopBar({
       <View style={styles.topBarLeft}>
         <GravityDot size={10} />
         <Text style={styles.topBarTitle}>{title}</Text>
+        {demoModeEnabled ? (
+          <View style={styles.demoBadge}>
+            <Text style={styles.demoBadgeText}>DEMO MODE</Text>
+          </View>
+        ) : null}
       </View>
       {onSelectSnapshot ? (
         <SnapshotSelector
@@ -313,6 +324,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
+  },
+  demoBadge: {
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.accentSoft,
+    backgroundColor: theme.colors.panelElevated,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginLeft: theme.spacing.xs,
+  },
+  demoBadgeText: {
+    color: theme.colors.muted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
   },
   topBarTitle: {
     color: theme.colors.text,

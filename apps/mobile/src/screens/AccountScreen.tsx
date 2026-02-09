@@ -4,6 +4,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { isDemoModeAvailable, useDemoMode } from "../demo/demoMode";
 import { SnapshotRow } from "../lib/rpc";
 import { supabase } from "../lib/supabaseClient";
 import { theme } from "../theme/theme";
@@ -19,6 +20,8 @@ export function AccountScreen({
   selectedSnapshot: SnapshotRow | null;
   onOpenDocumentsSources: () => void;
 }) {
+  const { demoModeEnabled, setDemoModeEnabled } = useDemoMode();
+
   const [signOutLoading, setSignOutLoading] = React.useState(false);
   const [signOutErrorText, setSignOutErrorText] = React.useState<string | null>(null);
 
@@ -115,6 +118,25 @@ export function AccountScreen({
           <Text style={styles.rowValue}>{build}</Text>
         </View>
       </GravityCard>
+
+      {isDemoModeAvailable() ? (
+        <GravityCard>
+          <Text style={styles.sectionTitle}>Demo (dev)</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Toggle Demo Mode"
+            onPress={() => setDemoModeEnabled(!demoModeEnabled)}
+            style={({ pressed }) => [styles.toggleRow, pressed && styles.actionButtonPressed]}
+          >
+            <Text style={styles.toggleLabel}>Demo Mode</Text>
+            <View style={styles.statusRight}>
+              <View style={[styles.statusDot, demoModeEnabled && styles.statusDotActive]} />
+              <Text style={styles.toggleValue}>{demoModeEnabled ? "On" : "Off"}</Text>
+            </View>
+          </Pressable>
+          <Text style={styles.meta}>Dev-only. Uses local seed snapshots.</Text>
+        </GravityCard>
+      ) : null}
 
       <GravityCard>
         <Text style={styles.sectionTitle}>Privacy &amp; Access</Text>
@@ -270,6 +292,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: theme.spacing.sm,
     flexWrap: "wrap",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.md,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.panel,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  toggleLabel: {
+    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  toggleValue: {
+    color: theme.colors.subtle,
+    fontSize: 12,
+    fontWeight: "800",
   },
 });
 
