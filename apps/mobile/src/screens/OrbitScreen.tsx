@@ -9,8 +9,9 @@ import {
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { SnapshotRow } from "../lib/rpc";
+import { useSnapshots } from "../lib/useSnapshots";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
-import { rpcListSnapshots, SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
 
 export function OrbitScreen({
@@ -19,41 +20,10 @@ export function OrbitScreen({
   onSelectSnapshot: (snapshot: SnapshotRow) => void;
 }) {
   const env = getSupabaseEnvStatus();
-  const [snapshots, setSnapshots] = React.useState<SnapshotRow[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [errorText, setErrorText] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let alive = true;
-
-    async function run() {
-      setLoading(true);
-      setErrorText(null);
-      try {
-        const data = await rpcListSnapshots({ p_limit: 50 });
-        if (!alive) return;
-        setSnapshots(data);
-      } catch (err) {
-        if (!alive) return;
-        setSnapshots([]);
-        setErrorText("—");
-        // TODO: Add locked copy for error states to docs/LOCKED_COPY.md.
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }
-
-    // Only attempt fetch when env is set; otherwise show placeholders.
-    if (env.hasUrl && env.hasAnonKey) {
-      void run();
-    } else {
-      setSnapshots([]);
-    }
-
-    return () => {
-      alive = false;
-    };
-  }, [env.hasUrl, env.hasAnonKey]);
+  const { snapshots, loading, errorText } = useSnapshots({
+    enabled: env.hasUrl && env.hasAnonKey,
+    disabledBehavior: "clear",
+  });
 
   return (
     <View style={styles.root}>

@@ -9,8 +9,9 @@ import {
 } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
+import { SnapshotRow } from "../lib/rpc";
+import { useSnapshots } from "../lib/useSnapshots";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
-import { rpcListSnapshots, SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
 
 type SnapshotSelectorProps = {
@@ -26,41 +27,10 @@ export function SnapshotSelector({
   const isEnabled = env.hasUrl && env.hasAnonKey;
 
   const [open, setOpen] = React.useState(false);
-  const [snapshots, setSnapshots] = React.useState<SnapshotRow[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [errorText, setErrorText] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let alive = true;
-    async function run() {
-      setLoading(true);
-      setErrorText(null);
-      try {
-        const data = await rpcListSnapshots({ p_limit: 50 });
-        if (!alive) return;
-        setSnapshots(data);
-      } catch (err) {
-        if (!alive) return;
-        setSnapshots([]);
-        setErrorText("—");
-        // TODO: Add locked copy for snapshot selector error states to docs/LOCKED_COPY.md.
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }
-
-    if (open && isEnabled) {
-      void run();
-    } else if (!open) {
-      setSnapshots([]);
-      setLoading(false);
-      setErrorText(null);
-    }
-
-    return () => {
-      alive = false;
-    };
-  }, [open, isEnabled]);
+  const { snapshots, loading, errorText } = useSnapshots({
+    enabled: open && isEnabled,
+    disabledBehavior: open ? "none" : "reset",
+  });
 
   const selectedLabel = selectedSnapshot ? selectedSnapshot.snapshot_month : "—";
 
