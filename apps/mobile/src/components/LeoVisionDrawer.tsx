@@ -443,24 +443,34 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
                             <View style={styles.bubbleDivider} />
 
                             <Text style={styles.bubbleLabel}>Evidence used</Text>
-                            {(m.evidenceUsed?.length ?? 0) === 0 && (m.citations?.length ?? 0) === 0 ? (
-                              <Text style={styles.bubbleText}>- —</Text>
-                            ) : (
-                              <>
-                                {Array.from(
-                                  new Set([
-                                    ...(m.evidenceUsed ?? []),
-                                    ...(m.citations ?? []).map((c) => c.title),
-                                  ])
-                                )
-                                  .filter((v) => v.trim().length > 0)
-                                  .map((v) => (
+                            {(() => {
+                              const citationTitleSet = new Set(
+                                (m.citations ?? []).map((c) => c.title)
+                              );
+                              const metricLines = (m.evidenceUsed ?? [])
+                                .filter((v) => v.trim().length > 0 && !citationTitleSet.has(v))
+                                .map((v) => v.trim());
+                              const sourceLines = (m.citations ?? [])
+                                .filter((c) => c.title.trim().length > 0)
+                                .map(
+                                  (c) => `[source] ${c.title.trim()} — ${c.url?.trim() || "—"}`
+                                );
+                              const evidenceLines = [...metricLines, ...sourceLines];
+
+                              if (evidenceLines.length === 0) {
+                                return <Text style={styles.bubbleText}>- —</Text>;
+                              }
+
+                              return (
+                                <>
+                                  {evidenceLines.map((v) => (
                                     <Text key={`evidence:${m.id}:${v}`} style={styles.bubbleText}>
                                       - {v}
                                     </Text>
                                   ))}
-                              </>
-                            )}
+                                </>
+                              );
+                            })()}
 
                             <View style={styles.bubbleDivider} />
 
