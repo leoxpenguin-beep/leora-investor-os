@@ -2,8 +2,10 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 
 import { CockpitScreen } from "./src/screens/CockpitScreen";
+import { DocumentsSourcesScreen } from "./src/screens/DocumentsSourcesScreen";
 import { OrbitScreen } from "./src/screens/OrbitScreen";
 import { SnapshotDetailScreen } from "./src/screens/SnapshotDetailScreen";
+import { SnapshotTimelineScreen } from "./src/screens/SnapshotTimelineScreen";
 import { ValueMultiSnapshotsScreen } from "./src/screens/ValueMultiSnapshotsScreen";
 import { ShellRouteKey, TerminalShell } from "./src/shell/TerminalShell";
 import { SnapshotRow } from "./src/lib/rpc";
@@ -37,7 +39,21 @@ export default function App() {
             onOpenSnapshotDetail={() => setRoute("snapshot_detail")}
           />
         ) : route === "snapshot_detail" ? (
-          <SnapshotDetailScreen snapshot={selectedSnapshot} />
+          <SnapshotDetailScreen
+            snapshot={selectedSnapshot}
+            onOpenDocumentsSources={() => setRoute("documents_sources")}
+            onOpenSnapshotTimeline={() => setRoute("snapshot_timeline")}
+          />
+        ) : route === "documents_sources" ? (
+          <DocumentsSourcesScreen
+            snapshot={selectedSnapshot}
+            onBack={() => setRoute("snapshot_detail")}
+          />
+        ) : route === "snapshot_timeline" ? (
+          <SnapshotTimelineScreen
+            snapshot={selectedSnapshot}
+            onBack={() => setRoute("snapshot_detail")}
+          />
         ) : (
           <CockpitScreen snapshot={selectedSnapshot} />
         )}

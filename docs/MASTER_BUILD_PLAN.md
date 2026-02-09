@@ -71,6 +71,47 @@ Source of truth for **module ordering** and scope boundaries. The Architecture L
 - **Definition of done**:
   - Clear PR review gates exist for: no derived metrics, read-only client, allowlisted sources, locked copy, and no unsupported operational KPIs.
 
+### Module 6 — Value (Multiple Snapshots)
+
+- **Goal**: show multiple snapshots side-by-side as display-only rows (no calculations).
+- **Primary artifacts**: `ValueMultiSnapshotsScreen`, `rpc_list_snapshots`, `rpc_list_metric_values`.
+- **Requirements**:
+  - List snapshots (owner-only via RLS) and allow selecting the active snapshot.
+  - Optional expand to view `metric_key` + `value_text` (display-only).
+  - No deltas, totals, ratios, or rollups.
+- **Definition of done**:
+  - Investors can browse snapshots and view stored `value_text` strings without computation.
+
+### Module 7 — Snapshot Detail
+
+- **Goal**: provide a single snapshot view that combines `investor_positions` + `metric_values`.
+- **Primary artifacts**: `SnapshotDetailScreen`, `rpc_get_investor_position`, `rpc_list_metric_values`.
+- **Requirements**:
+  - Display `summary_text` / `narrative_text` verbatim (or `"—"`).
+  - Display `metric_key` + `value_text` only; group by prefix if present.
+- **Definition of done**:
+  - Snapshot detail renders position + value sections with display-only data.
+
+### Module 8 — Documents & Sources
+
+- **Goal**: show snapshot-linked source documents as display-only rows.
+- **Primary artifacts**: `snapshot_sources` table, `rpc_list_snapshot_sources`, `DocumentsSourcesScreen`.
+- **Requirements**:
+  - Display `source_type`, `title`, `note`, and optional `url` (no edits/uploads).
+  - Strict owner-only reads via RLS; no app writes.
+- **Definition of done**:
+  - Investors can open a snapshot’s sources list (read-only).
+
+### Module 9 — Snapshot Timeline
+
+- **Goal**: show a display-only timeline of events linked to a snapshot.
+- **Primary artifacts**: `snapshot_timeline_events` table, `rpc_list_snapshot_timeline_events`, `SnapshotTimelineScreen`.
+- **Requirements**:
+  - Display `event_date`, `title`, `detail`, and `source_page` verbatim (or `"—"`).
+  - No derived metrics or calculations; owner-only reads via RLS.
+- **Definition of done**:
+  - Timeline renders for the active snapshot and is reachable from Snapshot Detail.
+
 ## Explicitly out of scope (BLOCK)
 
 - Any finance calculations / derived metrics in UI or AI outputs.

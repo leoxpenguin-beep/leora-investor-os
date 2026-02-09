@@ -29,6 +29,22 @@ export type InvestorPositionRow = {
   updated_at: string;
 };
 
+export type SnapshotSourceRow = {
+  source_type: string;
+  title: string;
+  url: string | null;
+  note: string | null;
+};
+
+export type SnapshotTimelineEventRow = {
+  event_key: string;
+  event_date: string | null;
+  title: string | null;
+  detail: string | null;
+  source_page: string;
+  created_at: string;
+};
+
 export type ListSnapshotsParams = {
   p_snapshot_kind?: SnapshotKind | null;
   p_snapshot_month?: string | null;
@@ -77,6 +93,32 @@ export async function rpcGetInvestorPosition(
   if (error) throw error;
   const rows = (data ?? []) as InvestorPositionRow[];
   return rows[0] ?? null;
+}
+
+export async function rpcListSnapshotSources(
+  snapshotId: string
+): Promise<SnapshotSourceRow[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase.rpc("rpc_list_snapshot_sources", {
+    p_snapshot_id: snapshotId,
+  });
+
+  if (error) throw error;
+  return (data ?? []) as SnapshotSourceRow[];
+}
+
+export async function rpcListSnapshotTimelineEvents(
+  snapshotId: string
+): Promise<SnapshotTimelineEventRow[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase.rpc("rpc_list_snapshot_timeline_events", {
+    p_snapshot_id: snapshotId,
+  });
+
+  if (error) throw error;
+  return (data ?? []) as SnapshotTimelineEventRow[];
 }
 
 // Guardrail: do not display unsupported operational KPIs as tiles/lists.

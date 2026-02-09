@@ -14,7 +14,13 @@ import { SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
 import { SnapshotSelector } from "./SnapshotSelector";
 
-export type ShellRouteKey = "orbit" | "value_multi" | "snapshot_detail" | "cockpit";
+export type ShellRouteKey =
+  | "orbit"
+  | "value_multi"
+  | "snapshot_detail"
+  | "snapshot_timeline"
+  | "documents_sources"
+  | "cockpit";
 
 type TerminalShellProps = {
   route: ShellRouteKey;
@@ -86,6 +92,10 @@ function TopBar({
         ? "Value"
         : route === "snapshot_detail"
           ? "Snapshot Detail"
+        : route === "snapshot_timeline"
+          ? "Snapshot Timeline"
+          : route === "documents_sources"
+            ? "Documents & Sources"
           : "Cockpit";
   return (
     <View style={styles.topBar}>
@@ -141,7 +151,7 @@ function LeftRail({
         />
       </View>
       <View style={styles.railFooter}>
-        <Text style={styles.railFooterText}>Module 7 · Snapshot Detail</Text>
+        <Text style={styles.railFooterText}>Module 9 · Snapshot Timeline</Text>
       </View>
     </View>
   );
