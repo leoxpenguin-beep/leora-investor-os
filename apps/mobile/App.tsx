@@ -17,7 +17,8 @@ import { SnapshotDetailScreen } from "./src/screens/SnapshotDetailScreen";
 import { SnapshotTimelineScreen } from "./src/screens/SnapshotTimelineScreen";
 import { ValueMultiSnapshotsScreen } from "./src/screens/ValueMultiSnapshotsScreen";
 import { useSession } from "./src/lib/useSession";
-import { ShellRouteKey, TerminalShell } from "./src/shell/TerminalShell";
+import { TerminalShell } from "./src/shell/TerminalShell";
+import { ShellRouteKey } from "./src/shell/routes";
 import { SnapshotRow } from "./src/lib/rpc";
 import { theme } from "./src/theme/theme";
 
