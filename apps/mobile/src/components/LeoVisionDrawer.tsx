@@ -1,17 +1,21 @@
 import * as Clipboard from "expo-clipboard";
 import React from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
 import { GravityCard } from "./GravityCard";
 import { GravityDot } from "./GravityDot";
 import { buildLeoContextPack, LeoVisionQuickActionKey, renderLeoVisionAnswer } from "../lib/leoVision";
+import { askLeoV1, AskLeoCitation } from "../lib/askLeoV1";
 import {
   InvestorPositionRow,
   MetricValueRow,
@@ -22,6 +26,7 @@ import {
   SnapshotRow,
   SnapshotSourceRow,
 } from "../lib/rpc";
+import { buildSnapshotContext } from "../lib/snapshotContext";
 import type { ShellRouteKey } from "../shell/routes";
 import { theme } from "../theme/theme";
 
@@ -38,6 +43,17 @@ type LoadedSnapshotData = {
   position: InvestorPositionRow | null;
   metrics: MetricValueRow[];
   sources: SnapshotSourceRow[];
+};
+
+type DrawerTabKey = "vision" | "chat_v1";
+
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  evidenceUsed?: string[];
+  notAvailable?: string[];
+  citations?: AskLeoCitation[];
 };
 
 function actionLabel(action: LeoVisionQuickActionKey): string {
@@ -89,6 +105,8 @@ async function findPreviousSnapshot(current: SnapshotRow): Promise<SnapshotRow |
 }
 
 export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot }: LeoVisionDrawerProps) {
+  const [tab, setTab] = React.useState<DrawerTabKey>("vision");
+
   const [activeAction, setActiveAction] = React.useState<LeoVisionQuickActionKey | null>(null);
   const [answerText, setAnswerText] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -96,11 +114,17 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
 
   const [currentLoaded, setCurrentLoaded] = React.useState<LoadedSnapshotData | null>(null);
 
+  const [questionText, setQuestionText] = React.useState("");
+  const [chatSending, setChatSending] = React.useState(false);
+  const [chatErrorText, setChatErrorText] = React.useState<string | null>(null);
+  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+
   React.useEffect(() => {
     if (!visible) return;
     // Reset transient UI when opening.
     setCopyMeta(null);
     setLoading(false);
+    setChatErrorText(null);
   }, [visible]);
 
   React.useEffect(() => {
@@ -183,6 +207,65 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
     }
   }
 
+  async function handleSendQuestion() {
+    if (chatSending) return;
+    const q = questionText.trim();
+    if (!q) return;
+
+    setQuestionText("");
+    setChatErrorText(null);
+
+    const userMsg: ChatMessage = {
+      id: `${Date.now()}:user`,
+      role: "user",
+      text: q,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setChatSending(true);
+
+    try {
+      if (!snapshot?.id) {
+        const assistantMsg: ChatMessage = {
+          id: `${Date.now()}:assistant`,
+          role: "assistant",
+          text: "Not available in this snapshot.",
+          evidenceUsed: [],
+          notAvailable: ["snapshot_id"],
+          citations: [],
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        return;
+      }
+
+      const snapshotContext = await buildSnapshotContext(snapshot.id, snapshot);
+      const res = await askLeoV1({ question: q, snapshotContext });
+
+      const assistantMsg: ChatMessage = {
+        id: `${Date.now()}:assistant`,
+        role: "assistant",
+        text: res.answerText || "—",
+        evidenceUsed: res.evidenceUsed ?? [],
+        notAvailable: res.notAvailable ?? [],
+        citations: res.citations ?? [],
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (err) {
+      const errText = err instanceof Error ? err.message : "—";
+      setChatErrorText(errText);
+      const assistantMsg: ChatMessage = {
+        id: `${Date.now()}:assistant_error`,
+        role: "assistant",
+        text: "—",
+        evidenceUsed: [],
+        notAvailable: ["request_failed"],
+        citations: [],
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } finally {
+      setChatSending(false);
+    }
+  }
+
   return (
     <Modal
       visible={visible}
@@ -198,7 +281,10 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
           onPress={onClose}
         />
 
-        <View style={styles.sheet}>
+        <KeyboardAvoidingView
+          style={styles.sheet}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
           <View style={styles.sheetHeader}>
             <View style={styles.sheetHeaderLeft}>
               <GravityDot size={10} />
@@ -216,78 +302,221 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
 
           <View style={styles.sheetMetaRow}>
             <Text style={styles.sheetMeta}>
-              Template mode (deterministic). Uses read-only snapshot data only.
+              Snapshot-scoped. Read-only data only. No calculations or predictions.
             </Text>
           </View>
 
-          <View style={styles.actions}>
-            {(
-              [
-                "explain_screen",
-                "what_changed_since_last_snapshot",
-                "what_should_i_check_next",
-                "create_investor_brief",
-              ] as const
-            ).map((key) => {
-              const isActive = activeAction === key;
-              return (
-                <Pressable
-                  key={key}
-                  accessibilityRole="button"
-                  accessibilityLabel={actionLabel(key)}
-                  disabled={loading}
-                  onPress={() => void runAction(key)}
-                  style={({ pressed }) => [
-                    styles.actionButton,
-                    isActive && styles.actionButtonActive,
-                    loading && styles.actionButtonDisabled,
-                    pressed && styles.actionButtonPressed,
-                  ]}
-                >
-                  <Text style={[styles.actionButtonText, isActive && styles.actionButtonTextActive]}>
-                    {actionLabel(key)}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View style={styles.tabRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Leo Vision tab"
+              onPress={() => setTab("vision")}
+              style={({ pressed }) => [
+                styles.tabButton,
+                tab === "vision" && styles.tabButtonActive,
+                pressed && styles.tabButtonPressed,
+              ]}
+            >
+              <Text style={[styles.tabText, tab === "vision" && styles.tabTextActive]}>
+                Leo Vision
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Ask Leo v1 tab"
+              onPress={() => setTab("chat_v1")}
+              style={({ pressed }) => [
+                styles.tabButton,
+                tab === "chat_v1" && styles.tabButtonActive,
+                pressed && styles.tabButtonPressed,
+              ]}
+            >
+              <Text style={[styles.tabText, tab === "chat_v1" && styles.tabTextActive]}>
+                Ask Leo v1
+              </Text>
+            </Pressable>
           </View>
 
-          <GravityCard style={styles.responseCard}>
-            <View style={styles.responseHeader}>
-              <Text style={styles.responseTitle}>
-                {activeAction ? actionLabel(activeAction) : "Response"}
-              </Text>
-              {answerText ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Copy response"
-                  onPress={() => void handleCopyResponse()}
-                  style={({ pressed }) => [styles.copyButton, pressed && styles.copyButtonPressed]}
-                >
-                  <Text style={styles.copyButtonText}>Copy</Text>
-                </Pressable>
-              ) : null}
-            </View>
+          {tab === "vision" ? (
+            <>
+              <View style={styles.actions}>
+                {(
+                  [
+                    "explain_screen",
+                    "what_changed_since_last_snapshot",
+                    "what_should_i_check_next",
+                    "create_investor_brief",
+                  ] as const
+                ).map((key) => {
+                  const isActive = activeAction === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      accessibilityRole="button"
+                      accessibilityLabel={actionLabel(key)}
+                      disabled={loading}
+                      onPress={() => void runAction(key)}
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        isActive && styles.actionButtonActive,
+                        loading && styles.actionButtonDisabled,
+                        pressed && styles.actionButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.actionButtonText,
+                          isActive && styles.actionButtonTextActive,
+                        ]}
+                      >
+                        {actionLabel(key)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
-            {loading ? (
-              <Text style={styles.responseMeta}>Loading…</Text>
-            ) : answerText ? (
-              <ScrollView
-                style={styles.responseScroll}
-                contentContainerStyle={styles.responseScrollContent}
-                alwaysBounceVertical={false}
-              >
-                <Text style={styles.responseText} selectable>
-                  {answerText}
+              <GravityCard style={styles.responseCard}>
+                <View style={styles.responseHeader}>
+                  <Text style={styles.responseTitle}>
+                    {activeAction ? actionLabel(activeAction) : "Response"}
+                  </Text>
+                  {answerText ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Copy response"
+                      onPress={() => void handleCopyResponse()}
+                      style={({ pressed }) => [styles.copyButton, pressed && styles.copyButtonPressed]}
+                    >
+                      <Text style={styles.copyButtonText}>Copy</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {loading ? (
+                  <Text style={styles.responseMeta}>Loading…</Text>
+                ) : answerText ? (
+                  <ScrollView
+                    style={styles.responseScroll}
+                    contentContainerStyle={styles.responseScrollContent}
+                    alwaysBounceVertical={false}
+                  >
+                    <Text style={styles.responseText} selectable>
+                      {answerText}
+                    </Text>
+                  </ScrollView>
+                ) : (
+                  <Text style={styles.responseMeta}>Choose a prompt above.</Text>
+                )}
+
+                {copyMeta ? <Text style={styles.responseMeta}>{copyMeta}</Text> : null}
+              </GravityCard>
+            </>
+          ) : (
+            <>
+              <GravityCard style={styles.chatCard}>
+                <Text style={styles.chatMeta}>
+                  Active snapshot: {snapshot ? snapshot.snapshot_month : "—"} ·{" "}
+                  {snapshot ? snapshot.snapshot_kind : "—"} · {snapshot?.project_key ?? "—"}
                 </Text>
-              </ScrollView>
-            ) : (
-              <Text style={styles.responseMeta}>Choose a prompt above.</Text>
-            )}
+                <ScrollView
+                  style={styles.chatScroll}
+                  contentContainerStyle={styles.chatScrollContent}
+                  alwaysBounceVertical={false}
+                >
+                  {messages.length === 0 ? (
+                    <Text style={styles.responseMeta}>Ask a question about this snapshot.</Text>
+                  ) : (
+                    messages.map((m) => (
+                      <View
+                        key={m.id}
+                        style={[
+                          styles.bubble,
+                          m.role === "user" ? styles.bubbleUser : styles.bubbleAssistant,
+                        ]}
+                      >
+                        {m.role === "assistant" ? (
+                          <>
+                            <Text style={styles.bubbleLabel}>Answer</Text>
+                            <Text style={styles.bubbleText}>{m.text}</Text>
 
-            {copyMeta ? <Text style={styles.responseMeta}>{copyMeta}</Text> : null}
-          </GravityCard>
-        </View>
+                            <View style={styles.bubbleDivider} />
+
+                            <Text style={styles.bubbleLabel}>Evidence used</Text>
+                            {(m.evidenceUsed?.length ?? 0) === 0 && (m.citations?.length ?? 0) === 0 ? (
+                              <Text style={styles.bubbleText}>- —</Text>
+                            ) : (
+                              <>
+                                {Array.from(
+                                  new Set([
+                                    ...(m.evidenceUsed ?? []),
+                                    ...(m.citations ?? []).map((c) => c.title),
+                                  ])
+                                )
+                                  .filter((v) => v.trim().length > 0)
+                                  .map((v) => (
+                                    <Text key={`evidence:${m.id}:${v}`} style={styles.bubbleText}>
+                                      - {v}
+                                    </Text>
+                                  ))}
+                              </>
+                            )}
+
+                            <View style={styles.bubbleDivider} />
+
+                            <Text style={styles.bubbleLabel}>Not available</Text>
+                            {(m.notAvailable?.length ?? 0) === 0 ? (
+                              <Text style={styles.bubbleText}>- —</Text>
+                            ) : (
+                              <>
+                                {m.notAvailable!.map((v) => (
+                                  <Text key={`na:${m.id}:${v}`} style={styles.bubbleText}>
+                                    - {v}
+                                  </Text>
+                                ))}
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <Text style={styles.bubbleText}>{m.text}</Text>
+                        )}
+                      </View>
+                    ))
+                  )}
+                  {chatSending ? <Text style={styles.responseMeta}>Sending…</Text> : null}
+                  {chatErrorText ? <Text style={styles.responseMeta}>{chatErrorText}</Text> : null}
+                </ScrollView>
+
+                <View style={styles.chatInputRow}>
+                  <TextInput
+                    value={questionText}
+                    onChangeText={setQuestionText}
+                    autoCapitalize="sentences"
+                    autoCorrect
+                    placeholder="Ask about this snapshot…"
+                    placeholderTextColor={theme.colors.subtle}
+                    style={styles.chatInput}
+                    editable={!chatSending}
+                    multiline
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Send"
+                    disabled={chatSending || questionText.trim().length === 0}
+                    onPress={() => void handleSendQuestion()}
+                    style={({ pressed }) => [
+                      styles.sendButton,
+                      (chatSending || questionText.trim().length === 0) && styles.sendButtonDisabled,
+                      pressed && styles.sendButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.sendButtonText}>{chatSending ? "…" : "Send"}</Text>
+                  </Pressable>
+                </View>
+              </GravityCard>
+            </>
+          )}
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -351,6 +580,37 @@ const styles = StyleSheet.create({
     color: theme.colors.subtle,
     fontSize: 12,
     lineHeight: 16,
+  },
+
+  tabRow: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+  },
+  tabButton: {
+    flex: 1,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.panel,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  tabButtonActive: {
+    borderColor: theme.colors.accentSoft,
+    backgroundColor: theme.colors.panelElevated,
+  },
+  tabButtonPressed: {
+    opacity: 0.9,
+  },
+  tabText: {
+    color: theme.colors.muted,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  tabTextActive: {
+    color: theme.colors.text,
   },
 
   actions: {
@@ -433,6 +693,97 @@ const styles = StyleSheet.create({
   },
   copyButtonText: {
     color: theme.colors.muted,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  chatCard: {
+    marginTop: theme.spacing.md,
+    marginHorizontal: theme.spacing.md,
+  },
+  chatMeta: {
+    color: theme.colors.subtle,
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: theme.spacing.sm,
+  },
+  chatScroll: {
+    maxHeight: 340,
+  },
+  chatScrollContent: {
+    gap: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
+  },
+  bubble: {
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.sm,
+  },
+  bubbleUser: {
+    backgroundColor: theme.colors.panel,
+    alignSelf: "flex-end",
+    maxWidth: "92%",
+  },
+  bubbleAssistant: {
+    backgroundColor: theme.colors.panelElevated,
+    alignSelf: "flex-start",
+    maxWidth: "92%",
+  },
+  bubbleLabel: {
+    color: theme.colors.muted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  bubbleText: {
+    color: theme.colors.subtle,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  bubbleDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: theme.spacing.sm,
+  },
+  chatInputRow: {
+    marginTop: theme.spacing.sm,
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    alignItems: "flex-end",
+  },
+  chatInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.panel,
+    minHeight: 44,
+    maxHeight: 120,
+  },
+  sendButton: {
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.panel,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendButtonDisabled: {
+    opacity: 0.6,
+  },
+  sendButtonPressed: {
+    opacity: 0.9,
+  },
+  sendButtonText: {
+    color: theme.colors.text,
     fontSize: 12,
     fontWeight: "900",
   },
