@@ -105,7 +105,7 @@ async function findPreviousSnapshot(current: SnapshotRow): Promise<SnapshotRow |
 }
 
 export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot }: LeoVisionDrawerProps) {
-  const [tab, setTab] = React.useState<DrawerTabKey>("vision");
+  const [tab, setTab] = React.useState<DrawerTabKey>("chat_v1");
 
   const [activeAction, setActiveAction] = React.useState<LeoVisionQuickActionKey | null>(null);
   const [answerText, setAnswerText] = React.useState<string | null>(null);
