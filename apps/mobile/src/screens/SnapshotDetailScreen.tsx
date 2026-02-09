@@ -28,9 +28,11 @@ type MetricGroup = {
 export function SnapshotDetailScreen({
   snapshot,
   onOpenDocumentsSources,
+  onOpenSnapshotTimeline,
 }: {
   snapshot: SnapshotRow | null;
   onOpenDocumentsSources: () => void;
+  onOpenSnapshotTimeline: () => void;
 }) {
   const env = getSupabaseEnvStatus();
 
@@ -150,6 +152,24 @@ export function SnapshotDetailScreen({
           >
             {/* TODO: Use locked copy for this label in docs/LOCKED_COPY.md. */}
             <Text style={styles.actionButtonText}>Documents &amp; Sources</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Snapshot Timeline"
+            disabled={!snapshot}
+            onPress={() => {
+              if (!snapshot) return;
+              onOpenSnapshotTimeline();
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              !snapshot && styles.actionButtonDisabled,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            {/* TODO: Use locked copy for this label in docs/LOCKED_COPY.md. */}
+            <Text style={styles.actionButtonText}>Snapshot Timeline</Text>
           </Pressable>
         </View>
 
@@ -283,6 +303,7 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: theme.spacing.sm,
     flexDirection: "row",
+    gap: theme.spacing.sm,
   },
   actionButton: {
     borderRadius: theme.radius.sm,

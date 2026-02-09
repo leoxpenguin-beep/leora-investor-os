@@ -18,6 +18,7 @@ export type ShellRouteKey =
   | "orbit"
   | "value_multi"
   | "snapshot_detail"
+  | "snapshot_timeline"
   | "documents_sources"
   | "cockpit";
 
@@ -91,6 +92,8 @@ function TopBar({
         ? "Value"
         : route === "snapshot_detail"
           ? "Snapshot Detail"
+        : route === "snapshot_timeline"
+          ? "Snapshot Timeline"
           : route === "documents_sources"
             ? "Documents & Sources"
           : "Cockpit";
@@ -148,7 +151,7 @@ function LeftRail({
         />
       </View>
       <View style={styles.railFooter}>
-        <Text style={styles.railFooterText}>Module 8 · Documents &amp; Sources</Text>
+        <Text style={styles.railFooterText}>Module 9 · Snapshot Timeline</Text>
       </View>
     </View>
   );
