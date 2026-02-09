@@ -9,6 +9,7 @@ import {
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { useDemoMode } from "../demo/demoMode";
 import {
   isForbiddenOperationalKpiMetricKey,
   MetricValueRow,
@@ -18,6 +19,7 @@ import {
 } from "../lib/rpc";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
 import { theme } from "../theme/theme";
+import { EmptyStateScreen } from "./EmptyStateScreen";
 
 type MetricsState =
   | { status: "idle" }
@@ -35,6 +37,8 @@ export function ValueMultiSnapshotsScreen({
   onOpenSnapshotDetail: () => void;
 }) {
   const env = getSupabaseEnvStatus();
+  const { demoModeEnabled } = useDemoMode();
+  const isEnabled = demoModeEnabled || (env.hasUrl && env.hasAnonKey);
 
   const [snapshots, setSnapshots] = React.useState<SnapshotRow[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -65,7 +69,8 @@ export function ValueMultiSnapshotsScreen({
       }
     }
 
-    if (env.hasUrl && env.hasAnonKey) {
+    // Allow demo mode to run even without Supabase env.
+    if (isEnabled) {
       void run();
     } else {
       setSnapshots([]);
@@ -74,7 +79,7 @@ export function ValueMultiSnapshotsScreen({
     return () => {
       alive = false;
     };
-  }, [env.hasUrl, env.hasAnonKey]);
+  }, [env.hasUrl, env.hasAnonKey, isEnabled]);
 
   async function ensureMetricsLoaded(snapshotId: string) {
     const existing = metricsBySnapshotId[snapshotId];
@@ -114,7 +119,9 @@ export function ValueMultiSnapshotsScreen({
         </Text>
         <Text style={styles.meta}>Active snapshot: {activeMeta}</Text>
 
-        {!env.hasUrl || !env.hasAnonKey ? (
+        {demoModeEnabled ? (
+          <Text style={styles.meta}>Demo Mode: local seed snapshots.</Text>
+        ) : !env.hasUrl || !env.hasAnonKey ? (
           <Text style={styles.meta}>
             Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
           </Text>
@@ -129,34 +136,46 @@ export function ValueMultiSnapshotsScreen({
         )}
       </GravityCard>
 
-      <FlatList
-        data={snapshots}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => {
-          const isActive = item.id === selectedSnapshot?.id;
-          const isExpanded = Boolean(expandedIds[item.id]);
-          const metricsState = metricsBySnapshotId[item.id] ?? { status: "idle" as const };
+      {!demoModeEnabled &&
+      env.hasUrl &&
+      env.hasAnonKey &&
+      !loading &&
+      !errorText &&
+      snapshots.length === 0 ? (
+        <EmptyStateScreen
+          title="No snapshots available yet."
+          detail="This screen lists snapshot rows (display-only). Add snapshots via backend scripts, or enable Demo Mode (dev-only)."
+        />
+      ) : (
+        <FlatList
+          data={snapshots}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => {
+            const isActive = item.id === selectedSnapshot?.id;
+            const isExpanded = Boolean(expandedIds[item.id]);
+            const metricsState = metricsBySnapshotId[item.id] ?? { status: "idle" as const };
 
-          return (
-            <SnapshotRowCard
-              snapshot={item}
-              active={isActive}
-              expanded={isExpanded}
-              metricsState={metricsState}
-              onOpenDetail={() => {
-                onSelectSnapshot(item);
-                onOpenSnapshotDetail();
-              }}
-              onToggleExpand={() => {
-                const next = !isExpanded;
-                setExpandedIds((prev) => ({ ...prev, [item.id]: next }));
-                if (next) void ensureMetricsLoaded(item.id);
-              }}
-            />
-          );
-        }}
-      />
+            return (
+              <SnapshotRowCard
+                snapshot={item}
+                active={isActive}
+                expanded={isExpanded}
+                metricsState={metricsState}
+                onOpenDetail={() => {
+                  onSelectSnapshot(item);
+                  onOpenSnapshotDetail();
+                }}
+                onToggleExpand={() => {
+                  const next = !isExpanded;
+                  setExpandedIds((prev) => ({ ...prev, [item.id]: next }));
+                  if (next) void ensureMetricsLoaded(item.id);
+                }}
+              />
+            );
+          }}
+        />
+      )}
     </View>
   );
 }

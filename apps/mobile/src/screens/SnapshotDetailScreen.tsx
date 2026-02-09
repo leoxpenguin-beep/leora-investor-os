@@ -9,6 +9,7 @@ import {
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { useDemoMode } from "../demo/demoMode";
 import {
   InvestorPositionRow,
   isForbiddenOperationalKpiMetricKey,
@@ -37,6 +38,8 @@ export function SnapshotDetailScreen({
   onOpenExportPack: () => void;
 }) {
   const env = getSupabaseEnvStatus();
+  const { demoModeEnabled } = useDemoMode();
+  const isEnabled = demoModeEnabled || (env.hasUrl && env.hasAnonKey);
 
   const [position, setPosition] = React.useState<InvestorPositionRow | null>(null);
   const [metrics, setMetrics] = React.useState<MetricValueRow[]>([]);
@@ -94,7 +97,8 @@ export function SnapshotDetailScreen({
       };
     }
 
-    if (env.hasUrl && env.hasAnonKey) {
+    // Allow demo mode to run even without Supabase env.
+    if (isEnabled) {
       void run(snapshot.id);
     } else {
       setPosition(null);
@@ -104,7 +108,7 @@ export function SnapshotDetailScreen({
     return () => {
       alive = false;
     };
-  }, [env.hasUrl, env.hasAnonKey, snapshot?.id]);
+  }, [env.hasUrl, env.hasAnonKey, isEnabled, snapshot?.id]);
 
   const projectKey = snapshot?.project_key ?? "—";
   const month = snapshot?.snapshot_month ?? "—";
@@ -195,6 +199,8 @@ export function SnapshotDetailScreen({
 
         {!snapshot ? (
           <Text style={styles.meta}>—</Text>
+        ) : demoModeEnabled ? (
+          <Text style={styles.meta}>Demo Mode: local seed snapshot detail.</Text>
         ) : !env.hasUrl || !env.hasAnonKey ? (
           <Text style={styles.meta}>
             Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY

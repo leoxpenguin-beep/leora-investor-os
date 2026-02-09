@@ -3,6 +3,8 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { GravityCard } from "./src/components/GravityCard";
+import { demoSnapshotIdSet, getMostRecentDemoSnapshot } from "./src/demo/demoData";
+import { useDemoMode } from "./src/demo/demoMode";
 import { CockpitScreen } from "./src/screens/CockpitScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { AuthScreen } from "./src/screens/AuthScreen";
@@ -19,11 +21,36 @@ import { theme } from "./src/theme/theme";
 
 export default function App() {
   const { session, user, loading } = useSession();
+  const { demoModeEnabled } = useDemoMode();
 
   const [route, setRoute] = React.useState<ShellRouteKey>("orbit");
   const [selectedSnapshot, setSelectedSnapshot] = React.useState<SnapshotRow | null>(
     null
   );
+
+  const lastRealSnapshotRef = React.useRef<SnapshotRow | null>(null);
+
+  React.useEffect(() => {
+    if (!demoModeEnabled) {
+      // If we are leaving demo mode and the active snapshot is demo-only, restore the last real
+      // selection (if any); otherwise clear it.
+      setSelectedSnapshot((prev) => {
+        if (prev && demoSnapshotIdSet.has(prev.id)) {
+          return lastRealSnapshotRef.current;
+        }
+        return prev;
+      });
+      return;
+    }
+
+    // Demo Mode enabled: force active snapshot to most recent demo snapshot.
+    setSelectedSnapshot((prev) => {
+      if (prev && !demoSnapshotIdSet.has(prev.id)) {
+        lastRealSnapshotRef.current = prev;
+      }
+      return getMostRecentDemoSnapshot();
+    });
+  }, [demoModeEnabled]);
 
   if (loading) {
     return (
@@ -38,7 +65,7 @@ export default function App() {
     );
   }
 
-  if (!session) {
+  if (!session && !demoModeEnabled) {
     return (
       <>
         <StatusBar style="light" />
@@ -55,6 +82,7 @@ export default function App() {
         onRouteChange={setRoute}
         selectedSnapshot={selectedSnapshot}
         onSelectSnapshot={setSelectedSnapshot}
+        demoModeEnabled={demoModeEnabled}
       >
         {route === "orbit" ? (
           <OrbitScreen

@@ -1,5 +1,8 @@
 import { supabase } from "./supabaseClient";
 
+import { demoSourcesBySnapshotId, demoSnapshots, buildDemoInvestorPositionRow, buildDemoMetricValueRows } from "../demo/demoData";
+import { getDemoModeEnabled } from "../demo/demoMode";
+
 export type SnapshotKind = "monthly" | "project";
 
 export type SnapshotRow = {
@@ -55,6 +58,23 @@ export type ListSnapshotsParams = {
 export async function rpcListSnapshots(
   params: ListSnapshotsParams = {}
 ): Promise<SnapshotRow[]> {
+  if (getDemoModeEnabled()) {
+    let out = [...demoSnapshots];
+    if (params.p_snapshot_kind) {
+      out = out.filter((s) => s.snapshot_kind === params.p_snapshot_kind);
+    }
+    if (params.p_snapshot_month) {
+      out = out.filter((s) => s.snapshot_month === params.p_snapshot_month);
+    }
+    if (params.p_project_key) {
+      out = out.filter((s) => (s.project_key ?? "") === params.p_project_key);
+    }
+    // Deterministic ordering for demo data (display-only).
+    out.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+    const limit = typeof params.p_limit === "number" ? params.p_limit : 50;
+    return out.slice(0, Math.max(0, limit));
+  }
+
   if (!supabase) return [];
 
   const { data, error } = await supabase.rpc("rpc_list_snapshots", {
@@ -71,6 +91,10 @@ export async function rpcListSnapshots(
 export async function rpcListMetricValues(
   snapshotId: string
 ): Promise<MetricValueRow[]> {
+  if (getDemoModeEnabled()) {
+    return buildDemoMetricValueRows(snapshotId);
+  }
+
   if (!supabase) return [];
 
   const { data, error } = await supabase.rpc("rpc_list_metric_values", {
@@ -84,6 +108,10 @@ export async function rpcListMetricValues(
 export async function rpcGetInvestorPosition(
   snapshotId: string
 ): Promise<InvestorPositionRow | null> {
+  if (getDemoModeEnabled()) {
+    return (buildDemoInvestorPositionRow(snapshotId) ?? null) as InvestorPositionRow | null;
+  }
+
   if (!supabase) return null;
 
   const { data, error } = await supabase.rpc("rpc_get_investor_position", {
@@ -98,6 +126,10 @@ export async function rpcGetInvestorPosition(
 export async function rpcListSnapshotSources(
   snapshotId: string
 ): Promise<SnapshotSourceRow[]> {
+  if (getDemoModeEnabled()) {
+    return demoSourcesBySnapshotId[snapshotId] ?? [];
+  }
+
   if (!supabase) return [];
 
   const { data, error } = await supabase.rpc("rpc_list_snapshot_sources", {

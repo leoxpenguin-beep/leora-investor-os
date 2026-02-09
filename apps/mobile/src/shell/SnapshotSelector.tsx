@@ -9,6 +9,7 @@ import {
 } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
+import { useDemoMode } from "../demo/demoMode";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
 import { rpcListSnapshots, SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
@@ -25,7 +26,8 @@ export function SnapshotSelector({
   onOpenSnapshotDetail,
 }: SnapshotSelectorProps) {
   const env = getSupabaseEnvStatus();
-  const isEnabled = env.hasUrl && env.hasAnonKey;
+  const { demoModeEnabled } = useDemoMode();
+  const isEnabled = demoModeEnabled || (env.hasUrl && env.hasAnonKey);
 
   const [open, setOpen] = React.useState(false);
   const [snapshots, setSnapshots] = React.useState<SnapshotRow[]>([]);
@@ -62,7 +64,7 @@ export function SnapshotSelector({
     return () => {
       alive = false;
     };
-  }, [open, isEnabled]);
+  }, [open, isEnabled, demoModeEnabled]);
 
   const selectedLabel = selectedSnapshot ? selectedSnapshot.snapshot_month : "—";
 
@@ -135,12 +137,14 @@ export function SnapshotSelector({
               <Text style={styles.modalMeta}>
                 Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
               </Text>
+            ) : demoModeEnabled ? (
+              <Text style={styles.modalMeta}>Demo Mode: local seed snapshots.</Text>
             ) : loading ? (
               <Text style={styles.modalMeta}>Loading…</Text>
             ) : errorText ? (
               <Text style={styles.modalMeta}>{errorText}</Text>
             ) : snapshots.length === 0 ? (
-              <Text style={styles.modalMeta}>—</Text>
+              <Text style={styles.modalMeta}>No snapshots available yet.</Text>
             ) : (
               <FlatList
                 data={snapshots}

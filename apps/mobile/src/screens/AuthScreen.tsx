@@ -3,11 +3,13 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { isDemoModeAvailable, useDemoMode } from "../demo/demoMode";
 import { getSupabaseEnvStatus, supabase } from "../lib/supabaseClient";
 import { theme } from "../theme/theme";
 
 export function AuthScreen() {
   const env = getSupabaseEnvStatus();
+  const { setDemoModeEnabled } = useDemoMode();
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -130,6 +132,20 @@ export function AuthScreen() {
           </Pressable>
         </View>
 
+        {isDemoModeAvailable() ? (
+          <View style={styles.devRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Enable Demo Mode"
+              onPress={() => setDemoModeEnabled(true)}
+              style={({ pressed }) => [styles.devButton, pressed && styles.actionButtonPressed]}
+            >
+              <Text style={styles.devButtonText}>Enable Demo Mode</Text>
+            </Pressable>
+            <Text style={styles.devHint}>Dev-only. Uses local seed snapshots.</Text>
+          </View>
+        ) : null}
+
         {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
       </GravityCard>
     </View>
@@ -212,6 +228,29 @@ const styles = StyleSheet.create({
     color: theme.colors.subtle,
     fontSize: 12,
     marginTop: theme.spacing.sm,
+    lineHeight: 16,
+  },
+  devRow: {
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.xs,
+  },
+  devButton: {
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.accentSoft,
+    backgroundColor: theme.colors.panelElevated,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+    alignItems: "center",
+  },
+  devButtonText: {
+    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  devHint: {
+    color: theme.colors.subtle,
+    fontSize: 12,
     lineHeight: 16,
   },
 });

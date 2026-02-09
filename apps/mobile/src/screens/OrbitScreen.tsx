@@ -9,9 +9,11 @@ import {
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { useDemoMode } from "../demo/demoMode";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
 import { rpcListSnapshots, SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
+import { EmptyStateScreen } from "./EmptyStateScreen";
 
 export function OrbitScreen({
   onSelectSnapshot,
@@ -19,6 +21,8 @@ export function OrbitScreen({
   onSelectSnapshot: (snapshot: SnapshotRow) => void;
 }) {
   const env = getSupabaseEnvStatus();
+  const { demoModeEnabled } = useDemoMode();
+  const isEnabled = demoModeEnabled || (env.hasUrl && env.hasAnonKey);
   const [snapshots, setSnapshots] = React.useState<SnapshotRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [errorText, setErrorText] = React.useState<string | null>(null);
@@ -43,8 +47,8 @@ export function OrbitScreen({
       }
     }
 
-    // Only attempt fetch when env is set; otherwise show placeholders.
-    if (env.hasUrl && env.hasAnonKey) {
+    // Allow demo mode to run even without Supabase env.
+    if (isEnabled) {
       void run();
     } else {
       setSnapshots([]);
@@ -53,7 +57,15 @@ export function OrbitScreen({
     return () => {
       alive = false;
     };
-  }, [env.hasUrl, env.hasAnonKey]);
+  }, [env.hasUrl, env.hasAnonKey, isEnabled]);
+
+  const showEmptyState =
+    !demoModeEnabled &&
+    env.hasUrl &&
+    env.hasAnonKey &&
+    !loading &&
+    !errorText &&
+    snapshots.length === 0;
 
   return (
     <View style={styles.root}>
@@ -63,7 +75,9 @@ export function OrbitScreen({
           <Text style={styles.title}>Orbit</Text>
         </View>
         <Text style={styles.subtitle}>Snapshots (read-only)</Text>
-        {!env.hasUrl || !env.hasAnonKey ? (
+        {demoModeEnabled ? (
+          <Text style={styles.meta}>Demo Mode: local seed snapshots.</Text>
+        ) : !env.hasUrl || !env.hasAnonKey ? (
           <Text style={styles.meta}>
             Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
           </Text>
@@ -71,19 +85,24 @@ export function OrbitScreen({
           <Text style={styles.meta}>Loading…</Text>
         ) : errorText ? (
           <Text style={styles.meta}>{errorText}</Text>
-        ) : snapshots.length === 0 ? (
-          <Text style={styles.meta}>—</Text>
         ) : null}
       </GravityCard>
 
-      <FlatList
-        data={snapshots}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <OrbitRow snapshot={item} onPress={() => onSelectSnapshot(item)} />
-        )}
-      />
+      {showEmptyState ? (
+        <EmptyStateScreen
+          title="No snapshots available yet."
+          detail="This is a read-only app. Add snapshots via backend scripts, or enable Demo Mode (dev-only)."
+        />
+      ) : (
+        <FlatList
+          data={snapshots}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <OrbitRow snapshot={item} onPress={() => onSelectSnapshot(item)} />
+          )}
+        />
+      )}
     </View>
   );
 }
