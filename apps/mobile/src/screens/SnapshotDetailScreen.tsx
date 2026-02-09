@@ -29,10 +29,12 @@ export function SnapshotDetailScreen({
   snapshot,
   onOpenDocumentsSources,
   onOpenSnapshotTimeline,
+  onOpenExportPack,
 }: {
   snapshot: SnapshotRow | null;
   onOpenDocumentsSources: () => void;
   onOpenSnapshotTimeline: () => void;
+  onOpenExportPack: () => void;
 }) {
   const env = getSupabaseEnvStatus();
 
@@ -171,6 +173,24 @@ export function SnapshotDetailScreen({
             {/* TODO: Use locked copy for this label in docs/LOCKED_COPY.md. */}
             <Text style={styles.actionButtonText}>Snapshot Timeline</Text>
           </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Export Pack"
+            disabled={!snapshot}
+            onPress={() => {
+              if (!snapshot) return;
+              onOpenExportPack();
+            }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              !snapshot && styles.actionButtonDisabled,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            {/* TODO: Use locked copy for this label in docs/LOCKED_COPY.md. */}
+            <Text style={styles.actionButtonText}>Export Pack</Text>
+          </Pressable>
         </View>
 
         {!snapshot ? (
@@ -303,6 +323,7 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: theme.spacing.sm,
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: theme.spacing.sm,
   },
   actionButton: {

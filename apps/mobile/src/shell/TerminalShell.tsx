@@ -18,6 +18,7 @@ export type ShellRouteKey =
   | "orbit"
   | "value_multi"
   | "snapshot_detail"
+  | "export_pack"
   | "snapshot_timeline"
   | "documents_sources"
   | "cockpit";
@@ -92,6 +93,8 @@ function TopBar({
         ? "Value"
         : route === "snapshot_detail"
           ? "Snapshot Detail"
+        : route === "export_pack"
+          ? "Export"
         : route === "snapshot_timeline"
           ? "Snapshot Timeline"
           : route === "documents_sources"

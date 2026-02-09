@@ -3,6 +3,7 @@ import React from "react";
 
 import { CockpitScreen } from "./src/screens/CockpitScreen";
 import { DocumentsSourcesScreen } from "./src/screens/DocumentsSourcesScreen";
+import { ExportSharePackScreen } from "./src/screens/ExportSharePackScreen";
 import { OrbitScreen } from "./src/screens/OrbitScreen";
 import { SnapshotDetailScreen } from "./src/screens/SnapshotDetailScreen";
 import { SnapshotTimelineScreen } from "./src/screens/SnapshotTimelineScreen";
@@ -43,7 +44,10 @@ export default function App() {
             snapshot={selectedSnapshot}
             onOpenDocumentsSources={() => setRoute("documents_sources")}
             onOpenSnapshotTimeline={() => setRoute("snapshot_timeline")}
+            onOpenExportPack={() => setRoute("export_pack")}
           />
+        ) : route === "export_pack" ? (
+          <ExportSharePackScreen snapshot={selectedSnapshot} onBack={() => setRoute("snapshot_detail")} />
         ) : route === "documents_sources" ? (
           <DocumentsSourcesScreen
             snapshot={selectedSnapshot}

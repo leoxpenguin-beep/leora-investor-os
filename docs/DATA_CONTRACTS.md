@@ -240,6 +240,10 @@ These RPCs are **read-only** and **SECURITY INVOKER** (they do not bypass RLS). 
   - Input: `p_snapshot_id`
   - Returns: `metric_key` + display-only `value_text` rows for that snapshot (visible under RLS).
 
+- **`rpc_get_investor_position` → `InvestorPosition[]`**
+  - Input: `p_snapshot_id`
+  - Returns: 0–1 display-only position rows for the **current user** (`auth.uid()`), including `summary_text` and `narrative_text` (visible under RLS).
+
 - **`rpc_list_snapshot_sources` → `SnapshotSource[]`**
   - Input: `p_snapshot_id`
   - Returns: display-only `source_type`, `title`, `url`, `note` rows for that snapshot (visible under RLS).
@@ -259,6 +263,11 @@ const { data: snapshots } = await supabase.rpc("rpc_list_snapshots", {
 
 // List metric values for a snapshot (owner-only via RLS)
 const { data: metricValues } = await supabase.rpc("rpc_list_metric_values", {
+  p_snapshot_id: snapshots?.[0]?.id,
+});
+
+// Get the current investor's position text for a snapshot (owner-only via RLS)
+const { data: investorPositionRows } = await supabase.rpc("rpc_get_investor_position", {
   p_snapshot_id: snapshots?.[0]?.id,
 });
 
