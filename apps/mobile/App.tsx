@@ -3,6 +3,7 @@ import React from "react";
 
 import { CockpitScreen } from "./src/screens/CockpitScreen";
 import { OrbitScreen } from "./src/screens/OrbitScreen";
+import { SnapshotDetailScreen } from "./src/screens/SnapshotDetailScreen";
 import { ValueMultiSnapshotsScreen } from "./src/screens/ValueMultiSnapshotsScreen";
 import { ShellRouteKey, TerminalShell } from "./src/shell/TerminalShell";
 import { SnapshotRow } from "./src/lib/rpc";
@@ -29,13 +30,16 @@ export default function App() {
               setRoute("cockpit");
             }}
           />
-        ) : route === "cockpit" ? (
-          <CockpitScreen snapshot={selectedSnapshot} />
-        ) : (
+        ) : route === "value_multi" ? (
           <ValueMultiSnapshotsScreen
             selectedSnapshot={selectedSnapshot}
             onSelectSnapshot={setSelectedSnapshot}
+            onOpenSnapshotDetail={() => setRoute("snapshot_detail")}
           />
+        ) : route === "snapshot_detail" ? (
+          <SnapshotDetailScreen snapshot={selectedSnapshot} />
+        ) : (
+          <CockpitScreen snapshot={selectedSnapshot} />
         )}
       </TerminalShell>
     </>

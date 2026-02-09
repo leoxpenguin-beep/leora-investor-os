@@ -16,11 +16,13 @@ import { theme } from "../theme/theme";
 type SnapshotSelectorProps = {
   selectedSnapshot: SnapshotRow | null;
   onSelectSnapshot: (snapshot: SnapshotRow) => void;
+  onOpenSnapshotDetail?: () => void;
 };
 
 export function SnapshotSelector({
   selectedSnapshot,
   onSelectSnapshot,
+  onOpenSnapshotDetail,
 }: SnapshotSelectorProps) {
   const env = getSupabaseEnvStatus();
   const isEnabled = env.hasUrl && env.hasAnonKey;
@@ -106,6 +108,26 @@ export function SnapshotSelector({
                 style={({ pressed }) => [pressed && styles.closePressed]}
               >
                 <Text style={styles.closeText}>×</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open Snapshot Detail"
+                disabled={!selectedSnapshot || !onOpenSnapshotDetail}
+                onPress={() => {
+                  if (!selectedSnapshot || !onOpenSnapshotDetail) return;
+                  setOpen(false);
+                  onOpenSnapshotDetail();
+                }}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  (!selectedSnapshot || !onOpenSnapshotDetail) && styles.actionButtonDisabled,
+                  pressed && styles.actionButtonPressed,
+                ]}
+              >
+                <Text style={styles.actionButtonText}>Open Snapshot Detail</Text>
               </Pressable>
             </View>
 
@@ -217,6 +239,30 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+  },
+  modalActions: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+  },
+  actionButton: {
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.panel,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+    alignItems: "center",
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
+  },
+  actionButtonPressed: {
+    opacity: 0.9,
+  },
+  actionButtonText: {
+    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: "800",
   },
   modalTitle: {
     color: theme.colors.text,
