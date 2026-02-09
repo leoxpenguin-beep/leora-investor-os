@@ -18,6 +18,7 @@ export type ShellRouteKey =
   | "orbit"
   | "value_multi"
   | "snapshot_detail"
+  | "account"
   | "export_pack"
   | "snapshot_timeline"
   | "documents_sources"
@@ -93,6 +94,8 @@ function TopBar({
         ? "Value"
         : route === "snapshot_detail"
           ? "Snapshot Detail"
+        : route === "account"
+          ? "Account"
         : route === "export_pack"
           ? "Export"
         : route === "snapshot_timeline"
@@ -152,6 +155,11 @@ function LeftRail({
           active={route === "cockpit"}
           onPress={() => onRouteChange("cockpit")}
         />
+        <RailItem
+          label="Account"
+          active={route === "account"}
+          onPress={() => onRouteChange("account")}
+        />
       </View>
       <View style={styles.railFooter}>
         <Text style={styles.railFooterText}>Module 9 · Snapshot Timeline</Text>
@@ -205,6 +213,11 @@ function BottomNav({
         label="Cockpit"
         active={route === "cockpit"}
         onPress={() => onRouteChange("cockpit")}
+      />
+      <BottomNavItem
+        label="Account"
+        active={route === "account"}
+        onPress={() => onRouteChange("account")}
       />
     </View>
   );
