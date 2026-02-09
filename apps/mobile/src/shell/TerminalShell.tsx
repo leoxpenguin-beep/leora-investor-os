@@ -10,20 +10,11 @@ import {
 
 import { GravityCard } from "../components/GravityCard";
 import { GravityDot } from "../components/GravityDot";
+import { LeoVisionDrawer } from "../components/LeoVisionDrawer";
 import { SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
 import { SnapshotSelector } from "./SnapshotSelector";
-
-export type ShellRouteKey =
-  | "orbit"
-  | "value_multi"
-  | "snapshot_detail"
-  | "audit"
-  | "account"
-  | "export_pack"
-  | "snapshot_timeline"
-  | "documents_sources"
-  | "cockpit";
+import { getShellRouteTitle, ShellRouteKey } from "./routes";
 
 type TerminalShellProps = {
   route: ShellRouteKey;
@@ -45,9 +36,18 @@ export function TerminalShell({
   const { width } = useWindowDimensions();
   const isWide = width >= 960;
 
+  const [askLeoOpen, setAskLeoOpen] = React.useState(false);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.root}>
+        <LeoVisionDrawer
+          visible={askLeoOpen}
+          onClose={() => setAskLeoOpen(false)}
+          route={route}
+          screenTitle={getShellRouteTitle(route)}
+          snapshot={selectedSnapshot ?? null}
+        />
         {isWide ? (
           <>
             <LeftRail route={route} onRouteChange={onRouteChange} />
@@ -58,6 +58,7 @@ export function TerminalShell({
                 selectedSnapshot={selectedSnapshot ?? null}
                 onSelectSnapshot={onSelectSnapshot}
                 demoModeEnabled={demoModeEnabled ?? false}
+                onAskLeoPress={() => setAskLeoOpen(true)}
               />
               <View style={styles.canvas}>{children}</View>
             </View>
@@ -71,6 +72,7 @@ export function TerminalShell({
               selectedSnapshot={selectedSnapshot ?? null}
               onSelectSnapshot={onSelectSnapshot}
               demoModeEnabled={demoModeEnabled ?? false}
+              onAskLeoPress={() => setAskLeoOpen(true)}
             />
             <View style={styles.canvas}>{children}</View>
             <BottomNav route={route} onRouteChange={onRouteChange} />
@@ -87,31 +89,16 @@ function TopBar({
   selectedSnapshot,
   onSelectSnapshot,
   demoModeEnabled,
+  onAskLeoPress,
 }: {
   route: ShellRouteKey;
   onRouteChange: (next: ShellRouteKey) => void;
   selectedSnapshot: SnapshotRow | null;
   onSelectSnapshot?: (snapshot: SnapshotRow) => void;
   demoModeEnabled: boolean;
+  onAskLeoPress: () => void;
 }) {
-  const title =
-    route === "orbit"
-      ? "Orbit"
-      : route === "value_multi"
-        ? "Value"
-        : route === "snapshot_detail"
-          ? "Snapshot Detail"
-        : route === "audit"
-          ? "Audit Log"
-        : route === "account"
-          ? "Account"
-        : route === "export_pack"
-          ? "Export"
-        : route === "snapshot_timeline"
-          ? "Snapshot Timeline"
-          : route === "documents_sources"
-            ? "Documents & Sources"
-          : "Cockpit";
+  const title = getShellRouteTitle(route);
   return (
     <View style={styles.topBar}>
       <View style={styles.topBarLeft}>
@@ -123,17 +110,27 @@ function TopBar({
           </View>
         ) : null}
       </View>
-      {onSelectSnapshot ? (
-        <SnapshotSelector
-          selectedSnapshot={selectedSnapshot}
-          onSelectSnapshot={onSelectSnapshot}
-          onOpenSnapshotDetail={() => onRouteChange("snapshot_detail")}
-        />
-      ) : (
-        <Text style={styles.topBarMeta}>
-          {selectedSnapshot ? selectedSnapshot.snapshot_month : "—"}
-        </Text>
-      )}
+      <View style={styles.topBarRight}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ask Leo"
+          onPress={onAskLeoPress}
+          style={({ pressed }) => [styles.askLeoButton, pressed && styles.askLeoButtonPressed]}
+        >
+          <Text style={styles.askLeoButtonText}>Ask Leo</Text>
+        </Pressable>
+        {onSelectSnapshot ? (
+          <SnapshotSelector
+            selectedSnapshot={selectedSnapshot}
+            onSelectSnapshot={onSelectSnapshot}
+            onOpenSnapshotDetail={() => onRouteChange("snapshot_detail")}
+          />
+        ) : (
+          <Text style={styles.topBarMeta}>
+            {selectedSnapshot ? selectedSnapshot.snapshot_month : "—"}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -181,7 +178,7 @@ function LeftRail({
         />
       </View>
       <View style={styles.railFooter}>
-        <Text style={styles.railFooterText}>Module 9 · Snapshot Timeline</Text>
+        <Text style={styles.railFooterText}>Module 16 · Leo Vision</Text>
       </View>
     </View>
   );
@@ -338,6 +335,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing.sm,
   },
+  topBarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+  },
   demoBadge: {
     borderRadius: theme.radius.sm,
     borderWidth: 1,
@@ -363,6 +365,26 @@ const styles = StyleSheet.create({
   topBarMeta: {
     color: theme.colors.muted,
     fontSize: 12,
+  },
+  askLeoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xs,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.panel,
+  },
+  askLeoButtonPressed: {
+    opacity: 0.9,
+  },
+  askLeoButtonText: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
 
   leftRail: {
