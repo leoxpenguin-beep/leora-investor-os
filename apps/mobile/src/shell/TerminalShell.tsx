@@ -167,6 +167,11 @@ function LeftRail({
           onPress={() => onRouteChange("cockpit")}
         />
         <RailItem
+          label="Agents"
+          active={route === "agents" || route === "ask_agent"}
+          onPress={() => onRouteChange("agents")}
+        />
+        <RailItem
           label="Audit Log"
           active={route === "audit"}
           onPress={() => onRouteChange("audit")}
@@ -178,7 +183,7 @@ function LeftRail({
         />
       </View>
       <View style={styles.railFooter}>
-        <Text style={styles.railFooterText}>Module 16 · Leo Vision</Text>
+        <Text style={styles.railFooterText}>Module 19 · Agent Router</Text>
       </View>
     </View>
   );
@@ -229,6 +234,11 @@ function BottomNav({
         label="Cockpit"
         active={route === "cockpit"}
         onPress={() => onRouteChange("cockpit")}
+      />
+      <BottomNavItem
+        label="Agents"
+        active={route === "agents" || route === "ask_agent"}
+        onPress={() => onRouteChange("agents")}
       />
       <BottomNavItem
         label="Audit Log"

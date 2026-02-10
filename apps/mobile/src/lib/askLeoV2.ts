@@ -109,6 +109,7 @@ export async function askLeoV2(input: {
     created_at?: string | null;
     label?: string | null;
   } | null;
+  agent_id?: string | null;
 }): Promise<AskLeoV2Sections> {
   const env = getSupabaseEnvStatus();
   if (!supabase || !env.hasUrl || !env.hasAnonKey) {
@@ -130,6 +131,7 @@ export async function askLeoV2(input: {
       question,
       snapshotContext: input.snapshotContext,
       activeSnapshot: input.activeSnapshot ?? null,
+      agent_id: input.agent_id ?? null,
     },
   });
 
