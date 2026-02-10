@@ -96,8 +96,6 @@ export function AskLeoV2Screen({
   const [errorText, setErrorText] = React.useState<string | null>(null);
   const [response, setResponse] = React.useState<LeoResponseModel | null>(null);
 
-  const citationsCount = response?.citations?.length ?? 0;
-
   const missingSections = React.useMemo(() => {
     const r = response;
     if (!r) return ["Summary", "What changed", "Context", "Sources"];
@@ -251,7 +249,7 @@ export function AskLeoV2Screen({
           {snapshot?.project_key ? snapshot.project_key : "—"}
         </Text>
         <Text style={styles.previewMeta}>
-          Sources: {citationsCount} · Created: {snapshot ? nonEmptyOrDash(snapshot.created_at) : "—"}
+          Sources · Created: {snapshot ? nonEmptyOrDash(snapshot.created_at) : "—"}
         </Text>
       </GravityCard>
 
