@@ -8,14 +8,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
 import { GravityCard } from "./GravityCard";
 import { GravityDot } from "./GravityDot";
 import { buildLeoContextPack, LeoVisionQuickActionKey, renderLeoVisionAnswer } from "../lib/leoVision";
-import { askLeoV1, AskLeoCitation } from "../lib/askLeoV1";
 import {
   InvestorPositionRow,
   MetricValueRow,
@@ -26,7 +24,7 @@ import {
   SnapshotRow,
   SnapshotSourceRow,
 } from "../lib/rpc";
-import { buildSnapshotContext } from "../lib/snapshotContext";
+import { AskLeoV2Screen } from "../screens/AskLeoV2Screen";
 import type { ShellRouteKey } from "../shell/routes";
 import { theme } from "../theme/theme";
 
@@ -45,16 +43,7 @@ type LoadedSnapshotData = {
   sources: SnapshotSourceRow[];
 };
 
-type DrawerTabKey = "vision" | "chat_v1";
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
-  evidenceUsed?: string[];
-  notAvailable?: string[];
-  citations?: AskLeoCitation[];
-};
+type DrawerTabKey = "vision" | "v2";
 
 function actionLabel(action: LeoVisionQuickActionKey): string {
   return action === "explain_screen"
@@ -105,7 +94,7 @@ async function findPreviousSnapshot(current: SnapshotRow): Promise<SnapshotRow |
 }
 
 export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot }: LeoVisionDrawerProps) {
-  const [tab, setTab] = React.useState<DrawerTabKey>("chat_v1");
+  const [tab, setTab] = React.useState<DrawerTabKey>("v2");
 
   const [activeAction, setActiveAction] = React.useState<LeoVisionQuickActionKey | null>(null);
   const [answerText, setAnswerText] = React.useState<string | null>(null);
@@ -114,17 +103,11 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
 
   const [currentLoaded, setCurrentLoaded] = React.useState<LoadedSnapshotData | null>(null);
 
-  const [questionText, setQuestionText] = React.useState("");
-  const [chatSending, setChatSending] = React.useState(false);
-  const [chatErrorText, setChatErrorText] = React.useState<string | null>(null);
-  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
-
   React.useEffect(() => {
     if (!visible) return;
     // Reset transient UI when opening.
     setCopyMeta(null);
     setLoading(false);
-    setChatErrorText(null);
   }, [visible]);
 
   React.useEffect(() => {
@@ -142,6 +125,16 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
     const next = await loadSnapshotData(snapshot);
     setCurrentLoaded(next);
     return next;
+  }
+
+  async function getCurrentForV2(): Promise<{
+    position: InvestorPositionRow | null;
+    metrics: MetricValueRow[];
+    sources: SnapshotSourceRow[];
+  } | null> {
+    const loaded = await ensureCurrentLoaded();
+    if (!loaded) return null;
+    return { position: loaded.position, metrics: loaded.metrics, sources: loaded.sources };
   }
 
   async function runAction(action: LeoVisionQuickActionKey) {
@@ -207,65 +200,6 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
     }
   }
 
-  async function handleSendQuestion() {
-    if (chatSending) return;
-    const q = questionText.trim();
-    if (!q) return;
-
-    setQuestionText("");
-    setChatErrorText(null);
-
-    const userMsg: ChatMessage = {
-      id: `${Date.now()}:user`,
-      role: "user",
-      text: q,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setChatSending(true);
-
-    try {
-      if (!snapshot?.id) {
-        const assistantMsg: ChatMessage = {
-          id: `${Date.now()}:assistant`,
-          role: "assistant",
-          text: "Not available in this snapshot.",
-          evidenceUsed: [],
-          notAvailable: ["snapshot_id"],
-          citations: [],
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-        return;
-      }
-
-      const snapshotContext = await buildSnapshotContext(snapshot.id, snapshot);
-      const res = await askLeoV1({ question: q, snapshotContext });
-
-      const assistantMsg: ChatMessage = {
-        id: `${Date.now()}:assistant`,
-        role: "assistant",
-        text: res.answerText || "—",
-        evidenceUsed: res.evidenceUsed ?? [],
-        notAvailable: res.notAvailable ?? [],
-        citations: res.citations ?? [],
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err) {
-      const errText = err instanceof Error ? err.message : "—";
-      setChatErrorText(errText);
-      const assistantMsg: ChatMessage = {
-        id: `${Date.now()}:assistant_error`,
-        role: "assistant",
-        text: "—",
-        evidenceUsed: [],
-        notAvailable: ["request_failed"],
-        citations: [],
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-    } finally {
-      setChatSending(false);
-    }
-  }
-
   return (
     <Modal
       visible={visible}
@@ -323,16 +257,16 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Ask Leo v1 tab"
-              onPress={() => setTab("chat_v1")}
+              accessibilityLabel="Leo Vision v2 tab"
+              onPress={() => setTab("v2")}
               style={({ pressed }) => [
                 styles.tabButton,
-                tab === "chat_v1" && styles.tabButtonActive,
+                tab === "v2" && styles.tabButtonActive,
                 pressed && styles.tabButtonPressed,
               ]}
             >
-              <Text style={[styles.tabText, tab === "chat_v1" && styles.tabTextActive]}>
-                Ask Leo v1
+              <Text style={[styles.tabText, tab === "v2" && styles.tabTextActive]}>
+                Leo Vision v2
               </Text>
             </Pressable>
           </View>
@@ -414,116 +348,12 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
             </>
           ) : (
             <>
-              <GravityCard style={styles.chatCard}>
-                <Text style={styles.chatMeta}>
-                  Active snapshot: {snapshot ? snapshot.snapshot_month : "—"} ·{" "}
-                  {snapshot ? snapshot.snapshot_kind : "—"} · {snapshot?.project_key ?? "—"}
-                </Text>
-                <ScrollView
-                  style={styles.chatScroll}
-                  contentContainerStyle={styles.chatScrollContent}
-                  alwaysBounceVertical={false}
-                >
-                  {messages.length === 0 ? (
-                    <Text style={styles.responseMeta}>Ask a question about this snapshot.</Text>
-                  ) : (
-                    messages.map((m) => (
-                      <View
-                        key={m.id}
-                        style={[
-                          styles.bubble,
-                          m.role === "user" ? styles.bubbleUser : styles.bubbleAssistant,
-                        ]}
-                      >
-                        {m.role === "assistant" ? (
-                          <>
-                            <Text style={styles.bubbleLabel}>Answer</Text>
-                            <Text style={styles.bubbleText}>{m.text}</Text>
-
-                            <View style={styles.bubbleDivider} />
-
-                            <Text style={styles.bubbleLabel}>Evidence used</Text>
-                            {(() => {
-                              const citationTitleSet = new Set(
-                                (m.citations ?? []).map((c) => c.title)
-                              );
-                              const metricLines = (m.evidenceUsed ?? [])
-                                .filter((v) => v.trim().length > 0 && !citationTitleSet.has(v))
-                                .map((v) => v.trim());
-                              const sourceLines = (m.citations ?? [])
-                                .filter((c) => c.title.trim().length > 0)
-                                .map(
-                                  (c) => `[source] ${c.title.trim()} — ${c.url?.trim() || "—"}`
-                                );
-                              const evidenceLines = [...metricLines, ...sourceLines];
-
-                              if (evidenceLines.length === 0) {
-                                return <Text style={styles.bubbleText}>- —</Text>;
-                              }
-
-                              return (
-                                <>
-                                  {evidenceLines.map((v) => (
-                                    <Text key={`evidence:${m.id}:${v}`} style={styles.bubbleText}>
-                                      - {v}
-                                    </Text>
-                                  ))}
-                                </>
-                              );
-                            })()}
-
-                            <View style={styles.bubbleDivider} />
-
-                            <Text style={styles.bubbleLabel}>Not available</Text>
-                            {(m.notAvailable?.length ?? 0) === 0 ? (
-                              <Text style={styles.bubbleText}>- —</Text>
-                            ) : (
-                              <>
-                                {m.notAvailable!.map((v) => (
-                                  <Text key={`na:${m.id}:${v}`} style={styles.bubbleText}>
-                                    - {v}
-                                  </Text>
-                                ))}
-                              </>
-                            )}
-                          </>
-                        ) : (
-                          <Text style={styles.bubbleText}>{m.text}</Text>
-                        )}
-                      </View>
-                    ))
-                  )}
-                  {chatSending ? <Text style={styles.responseMeta}>Sending…</Text> : null}
-                  {chatErrorText ? <Text style={styles.responseMeta}>{chatErrorText}</Text> : null}
-                </ScrollView>
-
-                <View style={styles.chatInputRow}>
-                  <TextInput
-                    value={questionText}
-                    onChangeText={setQuestionText}
-                    autoCapitalize="sentences"
-                    autoCorrect
-                    placeholder="Ask about this snapshot…"
-                    placeholderTextColor={theme.colors.subtle}
-                    style={styles.chatInput}
-                    editable={!chatSending}
-                    multiline
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Send"
-                    disabled={chatSending || questionText.trim().length === 0}
-                    onPress={() => void handleSendQuestion()}
-                    style={({ pressed }) => [
-                      styles.sendButton,
-                      (chatSending || questionText.trim().length === 0) && styles.sendButtonDisabled,
-                      pressed && styles.sendButtonPressed,
-                    ]}
-                  >
-                    <Text style={styles.sendButtonText}>{chatSending ? "…" : "Send"}</Text>
-                  </Pressable>
-                </View>
-              </GravityCard>
+              <AskLeoV2Screen
+                snapshot={snapshot}
+                screenTitle={screenTitle}
+                route={route}
+                getCurrentLoaded={getCurrentForV2}
+              />
             </>
           )}
         </KeyboardAvoidingView>
