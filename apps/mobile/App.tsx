@@ -10,17 +10,25 @@ import { CockpitScreen } from "./src/screens/CockpitScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { AuditLogScreen } from "./src/screens/AuditLogScreen";
 import { AuthScreen } from "./src/screens/AuthScreen";
+import { AgentsScreen } from "./src/screens/AgentsScreen";
 import { DocumentsSourcesScreen } from "./src/screens/DocumentsSourcesScreen";
 import { ExportSharePackScreen } from "./src/screens/ExportSharePackScreen";
 import { OrbitScreen } from "./src/screens/OrbitScreen";
+import { AskAgentScreen } from "./src/screens/AskAgentScreen";
 import { SnapshotDetailScreen } from "./src/screens/SnapshotDetailScreen";
 import { SnapshotTimelineScreen } from "./src/screens/SnapshotTimelineScreen";
 import { ValueMultiSnapshotsScreen } from "./src/screens/ValueMultiSnapshotsScreen";
 import { useSession } from "./src/lib/useSession";
 import { TerminalShell } from "./src/shell/TerminalShell";
 import { ShellRouteKey } from "./src/shell/routes";
-import { SnapshotRow } from "./src/lib/rpc";
+import {
+  rpcGetInvestorPosition,
+  rpcListMetricValues,
+  rpcListSnapshotSources,
+  SnapshotRow,
+} from "./src/lib/rpc";
 import { theme } from "./src/theme/theme";
+import type { AgentId } from "./src/lib/agentRegistry";
 
 export default function App() {
   const { session, user, loading } = useSession();
@@ -30,6 +38,7 @@ export default function App() {
   const [selectedSnapshot, setSelectedSnapshot] = React.useState<SnapshotRow | null>(
     null
   );
+  const [activeAgentId, setActiveAgentId] = React.useState<AgentId>("vision");
 
   const lastRealSnapshotRef = React.useRef<SnapshotRow | null>(null);
 
@@ -134,6 +143,35 @@ export default function App() {
           <SnapshotTimelineScreen
             snapshot={selectedSnapshot}
             onBack={() => setRoute("snapshot_detail")}
+          />
+        ) : route === "agents" ? (
+          <AgentsScreen
+            onOpenAgent={(agentId) => {
+              setActiveAgentId(agentId);
+              setRoute("ask_agent");
+            }}
+          />
+        ) : route === "ask_agent" ? (
+          <AskAgentScreen
+            agentId={activeAgentId}
+            snapshot={selectedSnapshot}
+            screenTitle={route === "ask_agent" ? "Ask Agent" : "—"}
+            route={route}
+            getCurrentLoaded={async () => {
+              if (!selectedSnapshot?.id) return null;
+              const [posRes, metricsRes, sourcesRes] = await Promise.allSettled([
+                rpcGetInvestorPosition(selectedSnapshot.id),
+                rpcListMetricValues(selectedSnapshot.id),
+                rpcListSnapshotSources(selectedSnapshot.id),
+              ]);
+
+              return {
+                position: posRes.status === "fulfilled" ? posRes.value : null,
+                metrics: metricsRes.status === "fulfilled" ? metricsRes.value : [],
+                sources: sourcesRes.status === "fulfilled" ? sourcesRes.value : [],
+              };
+            }}
+            onBack={() => setRoute("agents")}
           />
         ) : (
           <CockpitScreen snapshot={selectedSnapshot} />
