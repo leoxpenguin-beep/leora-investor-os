@@ -15,7 +15,7 @@ import {
 import { GravityCard } from "./GravityCard";
 import { GravityDot } from "./GravityDot";
 import { buildLeoContextPack, LeoVisionQuickActionKey, renderLeoVisionAnswer } from "../lib/leoVision";
-import { askLeoV1, AskLeoCitation } from "../lib/askLeoV1";
+import { callAskLeo, type AskLeoEdgeEvidence } from "../lib/callAskLeo";
 import {
   InvestorPositionRow,
   MetricValueRow,
@@ -27,6 +27,7 @@ import {
   SnapshotSourceRow,
 } from "../lib/rpc";
 import { buildSnapshotContext } from "../lib/snapshotContext";
+import { useDemoMode } from "../demo/demoMode";
 import type { ShellRouteKey } from "../shell/routes";
 import { theme } from "../theme/theme";
 
@@ -51,9 +52,7 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
-  evidenceUsed?: string[];
-  notAvailable?: string[];
-  citations?: AskLeoCitation[];
+  evidence?: AskLeoEdgeEvidence;
 };
 
 function actionLabel(action: LeoVisionQuickActionKey): string {
@@ -118,6 +117,8 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
   const [chatSending, setChatSending] = React.useState(false);
   const [chatErrorText, setChatErrorText] = React.useState<string | null>(null);
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+
+  const { demoModeEnabled } = useDemoMode();
 
   React.useEffect(() => {
     if (!visible) return;
@@ -229,36 +230,98 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
           id: `${Date.now()}:assistant`,
           role: "assistant",
           text: "Not available in this snapshot.",
-          evidenceUsed: [],
-          notAvailable: ["snapshot_id"],
-          citations: [],
+          evidence: { metrics_used: [], sources_used: [] },
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        return;
+      }
+
+      // Demo Mode must never call the edge function.
+      if (demoModeEnabled) {
+        const curLoaded = await ensureCurrentLoaded();
+        const curPack = buildLeoContextPack({
+          screenTitle,
+          route,
+          snapshot,
+          position: curLoaded?.position ?? null,
+          metrics: curLoaded?.metrics ?? [],
+          sources: curLoaded?.sources ?? [],
+        });
+
+        const qLower = q.toLowerCase();
+        const inferredAction: LeoVisionQuickActionKey =
+          qLower.includes("change") || qLower.includes("changed") || qLower.includes("since last")
+            ? "what_changed_since_last_snapshot"
+            : qLower.includes("brief") || qLower.includes("pack")
+              ? "create_investor_brief"
+              : qLower.includes("check") && qLower.includes("next")
+                ? "what_should_i_check_next"
+                : qLower.includes("explain")
+                  ? "explain_screen"
+                  : "what_should_i_check_next";
+
+        const prevPack =
+          inferredAction === "what_changed_since_last_snapshot" && snapshot?.id
+            ? (() => {
+                return findPreviousSnapshot(snapshot).then(async (prevSnapshot) => {
+                  if (!prevSnapshot) return null;
+                  const prevLoaded = await loadSnapshotData(prevSnapshot);
+                  return buildLeoContextPack({
+                    screenTitle,
+                    route,
+                    snapshot: prevSnapshot,
+                    position: prevLoaded?.position ?? null,
+                    metrics: prevLoaded?.metrics ?? [],
+                    sources: prevLoaded?.sources ?? [],
+                  });
+                });
+              })()
+            : Promise.resolve(null);
+
+        const resolvedPrev = await prevPack;
+        const demoAnswer = renderLeoVisionAnswer({
+          action: inferredAction,
+          current: curPack,
+          previous: resolvedPrev,
+        });
+
+        const assistantMsg: ChatMessage = {
+          id: `${Date.now()}:assistant`,
+          role: "assistant",
+          text: demoAnswer,
+          evidence: { metrics_used: [], sources_used: [] },
         };
         setMessages((prev) => [...prev, assistantMsg]);
         return;
       }
 
       const snapshotContext = await buildSnapshotContext(snapshot.id, snapshot);
-      const res = await askLeoV1({ question: q, snapshotContext });
+      const res = await callAskLeo({
+        question: q,
+        snapshotContext,
+        activeSnapshot: {
+          snapshot_month: snapshot.snapshot_month ?? null,
+          snapshot_kind: snapshot.snapshot_kind ?? null,
+          project_key: snapshot.project_key ?? null,
+          created_at: snapshot.created_at ?? null,
+          label: snapshot.label ?? null,
+        },
+      });
 
       const assistantMsg: ChatMessage = {
         id: `${Date.now()}:assistant`,
         role: "assistant",
         text: res.answerText || "—",
-        evidenceUsed: res.evidenceUsed ?? [],
-        notAvailable: res.notAvailable ?? [],
-        citations: res.citations ?? [],
+        evidence: res.evidence,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
-      const errText = err instanceof Error ? err.message : "—";
-      setChatErrorText(errText);
+      setChatErrorText("Leo is unavailable. Try again.");
       const assistantMsg: ChatMessage = {
         id: `${Date.now()}:assistant_error`,
         role: "assistant",
-        text: "—",
-        evidenceUsed: [],
-        notAvailable: ["request_failed"],
-        citations: [],
+        text: "Leo is unavailable. Try again.",
+        evidence: { metrics_used: [], sources_used: [] },
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } finally {
@@ -444,22 +507,15 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
 
                             <Text style={styles.bubbleLabel}>Evidence used</Text>
                             {(() => {
-                              const citationTitleSet = new Set(
-                                (m.citations ?? []).map((c) => c.title)
-                              );
-                              const metricLines = (m.evidenceUsed ?? [])
-                                .filter((v) => v.trim().length > 0 && !citationTitleSet.has(v))
-                                .map((v) => v.trim());
-                              const sourceLines = (m.citations ?? [])
-                                .filter((c) => c.title.trim().length > 0)
-                                .map(
-                                  (c) => `[source] ${c.title.trim()} — ${c.url?.trim() || "—"}`
-                                );
-                              const evidenceLines = [...metricLines, ...sourceLines];
+                              const metricLines = (m.evidence?.metrics_used ?? [])
+                                .map((v) => v.trim())
+                                .filter((v) => v.length > 0);
+                              const sourceLines = (m.evidence?.sources_used ?? [])
+                                .map((s) => `[source] ${s.title.trim()} — ${s.url.trim() || "—"}`)
+                                .filter((v) => v.trim().length > 0);
 
-                              if (evidenceLines.length === 0) {
-                                return <Text style={styles.bubbleText}>- —</Text>;
-                              }
+                              const evidenceLines = [...metricLines, ...sourceLines];
+                              if (evidenceLines.length === 0) return <Text style={styles.bubbleText}>- —</Text>;
 
                               return (
                                 <>
@@ -471,21 +527,6 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
                                 </>
                               );
                             })()}
-
-                            <View style={styles.bubbleDivider} />
-
-                            <Text style={styles.bubbleLabel}>Not available</Text>
-                            {(m.notAvailable?.length ?? 0) === 0 ? (
-                              <Text style={styles.bubbleText}>- —</Text>
-                            ) : (
-                              <>
-                                {m.notAvailable!.map((v) => (
-                                  <Text key={`na:${m.id}:${v}`} style={styles.bubbleText}>
-                                    - {v}
-                                  </Text>
-                                ))}
-                              </>
-                            )}
                           </>
                         ) : (
                           <Text style={styles.bubbleText}>{m.text}</Text>

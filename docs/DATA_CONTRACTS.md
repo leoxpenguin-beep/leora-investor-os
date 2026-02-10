@@ -331,3 +331,86 @@ export type AskLeoV1Response = {
 - No calculations / derived metrics / deltas / projections
 - No predictions or investment advice
 
+### `ask-leo-v1` — Ask Leo v1 (Edge, JWT + rate limit)
+
+This edge function is **grounded retrieval + formatting only**. It must never compute derived metrics or provide investment advice.
+
+- **Invocation**: `supabase.functions.invoke("ask-leo-v1", { body })`
+- **Auth**: **requires** a valid user JWT via `Authorization: Bearer <token>`
+  - Missing/invalid → `401`
+- **Rate limit**: best-effort in-memory throttle (per function instance)
+  - Exceeded → `429`
+- **Inputs**:
+  - `question` (string)
+  - `snapshotContext` (strings-only; built client-side from read-only RPCs)
+  - `activeSnapshot` (optional snapshot metadata; display-only)
+
+`snapshotContext` should be assembled using:
+- `rpc_list_metric_values(p_snapshot_id)`
+- `rpc_get_investor_position(p_snapshot_id)`
+- `rpc_list_snapshot_sources(p_snapshot_id)`
+
+#### Request (TypeScript-style)
+
+```ts
+export type AskLeoEdgeRequest = {
+  question: string;
+  snapshotContext: {
+    snapshot_id: string;
+    snapshot_month: string;
+    snapshot_kind: string;
+    project_key: string;
+    created_at: string;
+    label: string;
+    investor_position: { summary_text: string; narrative_text: string };
+    metric_values: Array<{ metric_key: string; value_text: string }>;
+    snapshot_sources: Array<{ source_type: string; title: string; url: string; note: string }>;
+  };
+  activeSnapshot?: {
+    snapshot_month?: string | null;
+    snapshot_kind?: string | null;
+    project_key?: string | null;
+    created_at?: string | null;
+    label?: string | null;
+  };
+};
+```
+
+#### Response (TypeScript-style)
+
+```ts
+export type AskLeoEdgeResponse = {
+  answerText: string;
+  evidence: {
+    metrics_used: string[];
+    sources_used: Array<{ title: string; url: string }>;
+  };
+};
+```
+
+#### Example invoke (Supabase JS)
+
+```ts
+const { data, error } = await supabase.functions.invoke("ask-leo-v1", {
+  body: {
+    question,
+    snapshotContext,
+    activeSnapshot: {
+      snapshot_month: selectedSnapshot?.snapshot_month ?? null,
+      snapshot_kind: selectedSnapshot?.snapshot_kind ?? null,
+      project_key: selectedSnapshot?.project_key ?? null,
+      created_at: selectedSnapshot?.created_at ?? null,
+      label: selectedSnapshot?.label ?? null,
+    },
+  },
+});
+```
+
+#### Guardrails (function-level)
+
+- Answer **only** from `snapshotContext`
+- If missing: return **"Not available in this snapshot."**
+- No calculations / derived metrics / deltas / projections
+- No predictions or investment advice
+- No DB writes
+
