@@ -33,27 +33,23 @@ Snapshot rows are **monthly** or **project** snapshots (no derived metrics).
 | `snapshot_id` | uuid (FK) | References `snapshots.id`          |
 | `metric_key`  | text     | Metric identifier (e.g. `revenue`, `runway`) |
 | `value_text`  | text     | **Display-only** stored value        |
-| `source_page` | text     | Notion source page (06, 07, 08, 09, 10, 11, 18, 19, 21 only) |
 | `created_at`  | timestamptz | Set on insert                    |
+| `source_page` | text (compatibility) | Optional source trace (allowlist 06,07,08,09,10,11,18,19,21) |
 
 - Unique on `(snapshot_id, metric_key)`.
-- **Definition of done:** Every displayed value traces to `metric_key` + `snapshot_id` + `source_page`.
+- **Definition of done:** Every displayed value is `metric_key` + `value_text` stored text, no computed values.
 - **RLS:** `SELECT` only when the owning snapshot is visible to the user (owner-only via `snapshots.investor_id`).
-- **Source allowlist:** `source_page` is constrained to `06, 07, 08, 09, 10, 11, 18, 19, 21`.
 
 ### `public.investor_positions`
 | Column         | Type      | Description                          |
 |----------------|-----------|--------------------------------------|
-| `id`           | uuid (PK) | Row id                               |
-| `investor_id`  | uuid (FK) | References `auth.users.id`           |
-| `snapshot_id`  | uuid (FK) | References `snapshots.id`            |
+| `investor_id`  | uuid (PK) | Owner user id                        |
 | `summary_text` | text      | **Display-only** summary             |
 | `narrative_text` | text    | **Display-only** narrative           |
 | `created_at`   | timestamptz | Set on insert                     |
-| `updated_at`   | timestamptz | Set on insert/update               |
 
-- Unique on `(investor_id, snapshot_id)`.
 - **RLS:** `SELECT` only where `auth.uid() = investor_id`. No INSERT/UPDATE/DELETE from app; writes via server scripts with SERVICE ROLE.
+- Compatibility note: some environments may also retain `snapshot_id` / `updated_at` legacy columns; app still treats fields as display-only.
 
 ### `public.snapshot_sources`
 | Column         | Type      | Description                          |
@@ -61,10 +57,10 @@ Snapshot rows are **monthly** or **project** snapshots (no derived metrics).
 | `id`           | uuid (PK) | Row id                               |
 | `snapshot_id`  | uuid (FK) | References `snapshots.id`            |
 | `source_type`  | text      | **Display-only** source type label   |
-| `title`        | text      | **Display-only** document title      |
-| `url`          | text      | **Display-only** URL (optional)      |
-| `note`         | text      | **Display-only** note (verbatim; optional) |
+| `source_ref`   | text      | Source reference (Notion page id/url) |
+| `source_label` | text      | **Display-only** source label        |
 | `created_at`   | timestamptz | Set on insert                     |
+| `title` / `url` / `note` | text (compatibility) | Optional legacy display fields |
 
 - **RLS:** `SELECT` only when the owning snapshot is visible to the user (owner-only via `snapshots.investor_id`).
 - No INSERT/UPDATE/DELETE from app; writes via server scripts with SERVICE ROLE.
@@ -134,24 +130,24 @@ export type MetricValue = {
   snapshot_id: string;
   metric_key: string;
   value_text: string;
-  source_page: SourcePage;
+  source_page: SourcePage | "—";
   created_at: string; // timestamptz ISO string
 };
 
 export type InvestorPosition = {
   investor_id: string;
-  snapshot_id: string;
   summary_text: string | null;
   narrative_text: string | null;
   created_at: string; // timestamptz ISO string
-  updated_at: string; // timestamptz ISO string
 };
 
 export type SnapshotSource = {
   source_type: string;
-  title: string;
-  url: string | null;
-  note: string | null;
+  source_ref: string;
+  source_label: string | null;
+  title: string; // compatibility shape returned by rpc_list_snapshot_sources
+  url: string | null; // compatibility shape returned by rpc_list_snapshot_sources
+  note: string | null; // compatibility shape returned by rpc_list_snapshot_sources
 };
 
 export type SnapshotTimelineEvent = {
@@ -233,7 +229,7 @@ order by event_date desc nulls last, created_at desc, event_key asc;
 These RPCs are **read-only** and **SECURITY INVOKER** (they do not bypass RLS). They return raw rows and display-only strings — no aggregation, rollups, or math.
 
 - **`rpc_list_snapshots` → `Snapshot[]`**
-  - Inputs: `p_snapshot_kind?`, `p_snapshot_month?`, `p_project_key?`, `p_limit?`
+  - Inputs: `p_kind?` (Module 21 canonical) OR compatibility inputs `p_snapshot_kind?`, `p_snapshot_month?`, `p_project_key?`, `p_limit?`
   - Returns: raw snapshot rows visible under RLS.
 
 - **`rpc_list_metric_values` → `MetricValue[]`**
@@ -242,11 +238,11 @@ These RPCs are **read-only** and **SECURITY INVOKER** (they do not bypass RLS). 
 
 - **`rpc_get_investor_position` → `InvestorPosition[]`**
   - Input: `p_snapshot_id`
-  - Returns: 0–1 display-only position rows for the **current user** (`auth.uid()`), including `summary_text` and `narrative_text` (visible under RLS).
+  - Returns: 0–1 display-only position rows for the **current user** (`auth.uid()`), including `summary_text` and `narrative_text` (visible under RLS). `p_snapshot_id` is accepted for API stability.
 
 - **`rpc_list_snapshot_sources` → `SnapshotSource[]`**
   - Input: `p_snapshot_id`
-  - Returns: display-only `source_type`, `title`, `url`, `note` rows for that snapshot (visible under RLS).
+  - Returns: display-only source rows for that snapshot (visible under RLS), including compatibility output fields `title`, `url`, `note`.
 
 - **`rpc_list_snapshot_timeline_events` → `SnapshotTimelineEvent[]`**
   - Input: `p_snapshot_id`
