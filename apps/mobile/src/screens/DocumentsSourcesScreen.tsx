@@ -9,10 +9,11 @@ import {
 } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
+import { DataSourcePill } from "../components/DataSourcePill";
 import { GravityDot } from "../components/GravityDot";
 import { useDemoMode } from "../demo/demoMode";
 import { logAuditEvent } from "../lib/auditLog";
-import { rpcListSnapshotSources, SnapshotRow, SnapshotSourceRow } from "../lib/rpc";
+import { logRemoteSmokeEvent, rpcListSnapshotSources, SnapshotRow, SnapshotSourceRow } from "../lib/rpc";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
 import { theme } from "../theme/theme";
 
@@ -46,10 +47,22 @@ export function DocumentsSourcesScreen({
         const data = await rpcListSnapshotSources(snapshotId);
         if (!alive) return;
         setSources(data);
+        logRemoteSmokeEvent({
+          screen: "DocumentsSourcesScreen",
+          snapshotId,
+          rpc: "rpc_list_snapshot_sources",
+          status: data.length > 0 ? "success" : "empty",
+        });
       } catch (err) {
         if (!alive) return;
         setSources([]);
-        setErrorText("—");
+        setErrorText("Unable to load data.");
+        logRemoteSmokeEvent({
+          screen: "DocumentsSourcesScreen",
+          snapshotId,
+          rpc: "rpc_list_snapshot_sources",
+          status: "error",
+        });
         // TODO: Add locked copy for documents/sources error states to docs/LOCKED_COPY.md.
       } finally {
         if (alive) setLoading(false);
@@ -101,6 +114,7 @@ export function DocumentsSourcesScreen({
             </Pressable>
           ) : null}
         </View>
+        <DataSourcePill demoModeEnabled={demoModeEnabled} />
 
         <Text style={styles.meta}>
           {month} · {kind} · {projectKey}
@@ -119,7 +133,7 @@ export function DocumentsSourcesScreen({
         ) : errorText ? (
           <Text style={styles.meta}>{errorText}</Text>
         ) : sources.length === 0 ? (
-          <Text style={styles.meta}>—</Text>
+          <Text style={styles.meta}>No data for this snapshot.</Text>
         ) : (
           <Text style={styles.meta}>Snapshot-linked sources (display-only)</Text>
         )}

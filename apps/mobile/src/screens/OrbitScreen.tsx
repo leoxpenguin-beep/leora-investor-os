@@ -8,10 +8,11 @@ import {
 } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
+import { DataSourcePill } from "../components/DataSourcePill";
 import { GravityDot } from "../components/GravityDot";
 import { useDemoMode } from "../demo/demoMode";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
-import { rpcListSnapshots, SnapshotRow } from "../lib/rpc";
+import { logRemoteSmokeEvent, rpcListSnapshots, SnapshotRow } from "../lib/rpc";
 import { theme } from "../theme/theme";
 import { EmptyStateScreen } from "./EmptyStateScreen";
 
@@ -37,10 +38,22 @@ export function OrbitScreen({
         const data = await rpcListSnapshots({ p_limit: 50 });
         if (!alive) return;
         setSnapshots(data);
+        logRemoteSmokeEvent({
+          screen: "OrbitScreen",
+          snapshotId: null,
+          rpc: "rpc_list_snapshots",
+          status: data.length > 0 ? "success" : "empty",
+        });
       } catch (err) {
         if (!alive) return;
         setSnapshots([]);
-        setErrorText("—");
+        setErrorText("Unable to load data.");
+        logRemoteSmokeEvent({
+          screen: "OrbitScreen",
+          snapshotId: null,
+          rpc: "rpc_list_snapshots",
+          status: "error",
+        });
         // TODO: Add locked copy for error states to docs/LOCKED_COPY.md.
       } finally {
         if (alive) setLoading(false);
@@ -74,6 +87,7 @@ export function OrbitScreen({
           <GravityDot size={10} />
           <Text style={styles.title}>Orbit</Text>
         </View>
+        <DataSourcePill demoModeEnabled={demoModeEnabled} />
         <Text style={styles.subtitle}>Snapshots (read-only)</Text>
         {demoModeEnabled ? (
           <Text style={styles.meta}>Demo Mode: local seed snapshots.</Text>
@@ -90,8 +104,8 @@ export function OrbitScreen({
 
       {showEmptyState ? (
         <EmptyStateScreen
-          title="No snapshots available yet."
-          detail="This is a read-only app. Add snapshots via backend scripts, or enable Demo Mode (dev-only)."
+          title="No data for this snapshot."
+          detail="No snapshots are available from the remote source."
         />
       ) : (
         <FlatList

@@ -55,6 +55,22 @@ export type ListSnapshotsParams = {
   p_limit?: number | null;
 };
 
+export type RemoteSmokeStatus = "success" | "empty" | "error";
+
+export function logRemoteSmokeEvent(input: {
+  screen: string;
+  snapshotId: string | null;
+  rpc: string;
+  status: RemoteSmokeStatus;
+}): void {
+  if (!__DEV__) return;
+  if (getDemoModeEnabled()) return;
+  const snapshotId = input.snapshotId?.trim() || "—";
+  console.log(
+    `[Remote] screen=${input.screen} snapshotId=${snapshotId} rpc=${input.rpc} status=${input.status}`
+  );
+}
+
 export async function rpcListSnapshots(
   params: ListSnapshotsParams = {}
 ): Promise<SnapshotRow[]> {
@@ -143,6 +159,10 @@ export async function rpcListSnapshotSources(
 export async function rpcListSnapshotTimelineEvents(
   snapshotId: string
 ): Promise<SnapshotTimelineEventRow[]> {
+  if (getDemoModeEnabled()) {
+    return [];
+  }
+
   if (!supabase) return [];
 
   const { data, error } = await supabase.rpc("rpc_list_snapshot_timeline_events", {
