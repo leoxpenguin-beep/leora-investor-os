@@ -208,8 +208,6 @@ export function AskLeoV2Screen({
       const snapshotContext = await buildSnapshotContext(snapshot.id, snapshot);
       debugLog("handleRun: invoking askLeoV2", {
         snapshotId: snapshot.id,
-        metricCount: snapshotContext.metric_values.length,
-        sourceCount: snapshotContext.snapshot_sources.length,
       });
       const v2 = await askLeoV2({
         question: q,
@@ -240,7 +238,7 @@ export function AskLeoV2Screen({
     } catch (error) {
       const message = formatErrorMessage(error);
       debugLog("handleRun: failed", { message });
-      setErrorText(`Leo request failed: ${message}`);
+      setErrorText("Leo is unavailable right now. Please try again.");
       setResponse({
         summary: NOT_AVAILABLE_IN_SNAPSHOT,
         what_changed: "",
@@ -331,7 +329,6 @@ export function AskLeoV2Screen({
             onPress={() => {
               debugLog("Run button pressed", {
                 disabled: sending || question.trim().length === 0,
-                questionLength: question.trim().length,
               });
               void handleRun();
             }}
