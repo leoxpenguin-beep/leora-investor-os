@@ -24,6 +24,27 @@ export type AskLeoV2Sections = {
   citations: AskLeoV2Citation[];
 };
 
+function debugLog(message: string, meta?: unknown) {
+  if (!__DEV__) return;
+  if (meta === undefined) {
+    console.log(`[AskLeoV2] ${message}`);
+    return;
+  }
+  console.log(`[AskLeoV2] ${message}`, meta);
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) return error.message.trim();
+  if (error && typeof error === "object") {
+    const rec = error as Record<string, unknown>;
+    const message = typeof rec.message === "string" ? rec.message.trim() : "";
+    const details = typeof rec.details === "string" ? rec.details.trim() : "";
+    const hint = typeof rec.hint === "string" ? rec.hint.trim() : "";
+    return message || details || hint || "Unknown edge function error";
+  }
+  return "Unknown edge function error";
+}
+
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
@@ -109,7 +130,6 @@ export async function askLeoV2(input: {
     created_at?: string | null;
     label?: string | null;
   } | null;
-  agent_id?: string | null;
 }): Promise<AskLeoV2Sections> {
   const env = getSupabaseEnvStatus();
   if (!supabase || !env.hasUrl || !env.hasAnonKey) {
@@ -126,25 +146,26 @@ export async function askLeoV2(input: {
     };
   }
 
+  debugLog("invoke ask_leo_v2: start", {
+    snapshotId: input.snapshotContext.snapshot_id,
+    hasActiveSnapshot: Boolean(input.activeSnapshot),
+  });
   const { data, error } = await supabase.functions.invoke("ask_leo_v2", {
     body: {
       question,
+      snapshot_id: input.snapshotContext.snapshot_id,
       snapshotContext: input.snapshotContext,
       activeSnapshot: input.activeSnapshot ?? null,
-      agent_id: input.agent_id ?? null,
     },
   });
 
   if (error) {
-    // Contract: invalid/missing → show the exact phrase.
-    return {
-      summary: NOT_AVAILABLE_IN_SNAPSHOT,
-      what_changed: "",
-      context: "",
-      citations: [],
-    };
+    const message = extractErrorMessage(error);
+    debugLog("invoke ask_leo_v2: error", { message });
+    throw new Error(message);
   }
 
+  debugLog("invoke ask_leo_v2: success");
   return normalizeSectionsFromUnknown(data);
 }
 

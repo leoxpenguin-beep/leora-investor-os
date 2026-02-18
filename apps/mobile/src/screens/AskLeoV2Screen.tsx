@@ -22,6 +22,26 @@ type LeoResponseModel = {
   citations: AskLeoV2Citation[];
 };
 
+function debugLog(message: string, meta?: unknown) {
+  if (!__DEV__) return;
+  if (meta === undefined) {
+    console.log(`[AskLeoV2Screen] ${message}`);
+    return;
+  }
+  console.log(`[AskLeoV2Screen] ${message}`, meta);
+}
+
+function formatErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) return error.message.trim();
+  if (error && typeof error === "object") {
+    const rec = error as Record<string, unknown>;
+    const message = typeof rec.message === "string" ? rec.message.trim() : "";
+    const details = typeof rec.details === "string" ? rec.details.trim() : "";
+    return message || details || "Unknown error";
+  }
+  return "Unknown error";
+}
+
 function quickActionLabel(action: LeoVisionQuickActionKey): string {
   return action === "explain_screen"
     ? "Explain this screen"
@@ -131,9 +151,18 @@ export function AskLeoV2Screen({
     response?.summary === NOT_AVAILABLE_IN_SNAPSHOT || (response != null && missingSections.length > 0);
 
   async function handleRun(overrideQuestion?: string) {
+    debugLog("handleRun: start", {
+      hasOverrideQuestion: Boolean(overrideQuestion),
+      sending,
+      hasSnapshot: Boolean(snapshot?.id),
+      demoModeEnabled,
+    });
     if (sending) return;
     const q = (overrideQuestion ?? question).trim();
-    if (!q) return;
+    if (!q) {
+      debugLog("handleRun: skipped (empty question)");
+      return;
+    }
 
     setSending(true);
     setErrorText(null);
@@ -150,6 +179,7 @@ export function AskLeoV2Screen({
       }
 
       if (demoModeEnabled) {
+        debugLog("handleRun: demo mode path");
         const curLoaded = await getCurrentLoaded();
         const curPack = buildLeoContextPack({
           screenTitle,
@@ -176,6 +206,9 @@ export function AskLeoV2Screen({
       }
 
       const snapshotContext = await buildSnapshotContext(snapshot.id, snapshot);
+      debugLog("handleRun: invoking askLeoV2", {
+        snapshotId: snapshot.id,
+      });
       const v2 = await askLeoV2({
         question: q,
         snapshotContext,
@@ -187,6 +220,7 @@ export function AskLeoV2Screen({
           label: snapshot.label ?? null,
         },
       });
+      debugLog("handleRun: askLeoV2 resolved");
 
       const normalized: LeoResponseModel = {
         summary: v2.summary || NOT_AVAILABLE_IN_SNAPSHOT,
@@ -201,8 +235,10 @@ export function AskLeoV2Screen({
       }
 
       setResponse(normalized);
-    } catch {
-      setErrorText("Leo is unavailable. Try again.");
+    } catch (error) {
+      const message = formatErrorMessage(error);
+      debugLog("handleRun: failed", { message });
+      setErrorText("Leo is unavailable right now. Please try again.");
       setResponse({
         summary: NOT_AVAILABLE_IN_SNAPSHOT,
         what_changed: "",
@@ -210,6 +246,7 @@ export function AskLeoV2Screen({
         citations: [],
       });
     } finally {
+      debugLog("handleRun: end");
       setSending(false);
     }
   }
@@ -255,6 +292,7 @@ export function AskLeoV2Screen({
                   accessibilityLabel={quickActionLabel(action)}
                   disabled={isDisabled}
                   onPress={() => {
+                    debugLog("quick action pressed", { action });
                     const q = quickActionPrefillQuestion(action, screenTitle);
                     setQuestion(q);
                     void handleRun(q);
@@ -288,7 +326,12 @@ export function AskLeoV2Screen({
             accessibilityRole="button"
             accessibilityLabel="Run"
             disabled={sending || question.trim().length === 0}
-            onPress={() => void handleRun()}
+            onPress={() => {
+              debugLog("Run button pressed", {
+                disabled: sending || question.trim().length === 0,
+              });
+              void handleRun();
+            }}
             style={({ pressed }) => [
               styles.runButton,
               (sending || question.trim().length === 0) && styles.runButtonDisabled,
