@@ -2,11 +2,13 @@ import React from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
+import { DataSourcePill } from "../components/DataSourcePill";
 import { GravityDot } from "../components/GravityDot";
 import { useDemoMode } from "../demo/demoMode";
 import { getSupabaseEnvStatus } from "../lib/supabaseClient";
 import {
   isForbiddenOperationalKpiMetricKey,
+  logRemoteSmokeEvent,
   MetricValueRow,
   rpcListMetricValues,
   SnapshotRow,
@@ -33,11 +35,24 @@ export function CockpitScreen({
       try {
         const data = await rpcListMetricValues(snapshotId);
         if (!alive) return;
-        setMetrics(data.filter((m) => !isForbiddenOperationalKpiMetricKey(m.metric_key)));
+        const safeMetrics = data.filter((m) => !isForbiddenOperationalKpiMetricKey(m.metric_key));
+        setMetrics(safeMetrics);
+        logRemoteSmokeEvent({
+          screen: "CockpitScreen",
+          snapshotId,
+          rpc: "rpc_list_metric_values",
+          status: safeMetrics.length > 0 ? "success" : "empty",
+        });
       } catch (err) {
         if (!alive) return;
         setMetrics([]);
-        setErrorText("—");
+        setErrorText("Unable to load data.");
+        logRemoteSmokeEvent({
+          screen: "CockpitScreen",
+          snapshotId,
+          rpc: "rpc_list_metric_values",
+          status: "error",
+        });
         // TODO: Add locked copy for error states to docs/LOCKED_COPY.md.
       } finally {
         if (alive) setLoading(false);
@@ -71,6 +86,7 @@ export function CockpitScreen({
           <GravityDot size={10} />
           <Text style={styles.title}>Cockpit</Text>
         </View>
+        <DataSourcePill demoModeEnabled={demoModeEnabled} />
         <Text style={styles.subtitle}>Snapshot metrics (display-only)</Text>
         {!snapshot ? (
           <Text style={styles.meta}>—</Text>
@@ -90,7 +106,7 @@ export function CockpitScreen({
         ) : errorText ? (
           <Text style={styles.meta}>{errorText}</Text>
         ) : metrics.length === 0 ? (
-          <Text style={styles.meta}>—</Text>
+          <Text style={styles.meta}>No data for this snapshot.</Text>
         ) : null}
       </GravityCard>
 

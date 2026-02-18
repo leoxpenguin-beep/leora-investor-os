@@ -173,7 +173,6 @@ export function AskAgentScreen({
           created_at: snapshot.created_at ?? null,
           label: snapshot.label ?? null,
         },
-        agent_id: agent.id,
       });
 
       setResponse({

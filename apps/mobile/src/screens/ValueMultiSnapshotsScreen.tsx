@@ -8,10 +8,12 @@ import {
 } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
+import { DataSourcePill } from "../components/DataSourcePill";
 import { GravityDot } from "../components/GravityDot";
 import { useDemoMode } from "../demo/demoMode";
 import {
   isForbiddenOperationalKpiMetricKey,
+  logRemoteSmokeEvent,
   MetricValueRow,
   rpcListMetricValues,
   rpcListSnapshots,
@@ -59,10 +61,22 @@ export function ValueMultiSnapshotsScreen({
         const data = await rpcListSnapshots({ p_limit: 50 });
         if (!alive) return;
         setSnapshots(data);
+        logRemoteSmokeEvent({
+          screen: "ValueMultiSnapshotsScreen",
+          snapshotId: null,
+          rpc: "rpc_list_snapshots",
+          status: data.length > 0 ? "success" : "empty",
+        });
       } catch (err) {
         if (!alive) return;
         setSnapshots([]);
-        setErrorText("—");
+        setErrorText("Unable to load data.");
+        logRemoteSmokeEvent({
+          screen: "ValueMultiSnapshotsScreen",
+          snapshotId: null,
+          rpc: "rpc_list_snapshots",
+          status: "error",
+        });
         // TODO: Add locked copy for error states to docs/LOCKED_COPY.md.
       } finally {
         if (alive) setLoading(false);
@@ -90,11 +104,23 @@ export function ValueMultiSnapshotsScreen({
       const data = await rpcListMetricValues(snapshotId);
       const safe = data.filter((m) => !isForbiddenOperationalKpiMetricKey(m.metric_key));
       setMetricsBySnapshotId((prev) => ({ ...prev, [snapshotId]: { status: "loaded", data: safe } }));
+      logRemoteSmokeEvent({
+        screen: "ValueMultiSnapshotsScreen",
+        snapshotId,
+        rpc: "rpc_list_metric_values",
+        status: safe.length > 0 ? "success" : "empty",
+      });
     } catch (err) {
       setMetricsBySnapshotId((prev) => ({
         ...prev,
-        [snapshotId]: { status: "error", errorText: "—" },
+        [snapshotId]: { status: "error", errorText: "Unable to load data." },
       }));
+      logRemoteSmokeEvent({
+        screen: "ValueMultiSnapshotsScreen",
+        snapshotId,
+        rpc: "rpc_list_metric_values",
+        status: "error",
+      });
       // TODO: Add locked copy for metric load error states to docs/LOCKED_COPY.md.
     }
   }
@@ -114,6 +140,7 @@ export function ValueMultiSnapshotsScreen({
           <GravityDot size={10} />
           <Text style={styles.title}>Value (Multiple Snapshots)</Text>
         </View>
+        <DataSourcePill demoModeEnabled={demoModeEnabled} />
         <Text style={styles.subtitle}>
           Compare snapshots using display-only stored fields. No calculations.
         </Text>
@@ -130,7 +157,7 @@ export function ValueMultiSnapshotsScreen({
         ) : errorText ? (
           <Text style={styles.meta}>{errorText}</Text>
         ) : snapshots.length === 0 ? (
-          <Text style={styles.meta}>—</Text>
+          <Text style={styles.meta}>No data for this snapshot.</Text>
         ) : (
           <Text style={styles.meta}>Tap a snapshot to set it active. Expand to view metrics.</Text>
         )}
@@ -143,8 +170,8 @@ export function ValueMultiSnapshotsScreen({
       !errorText &&
       snapshots.length === 0 ? (
         <EmptyStateScreen
-          title="No snapshots available yet."
-          detail="This screen lists snapshot rows (display-only). Add snapshots via backend scripts, or enable Demo Mode (dev-only)."
+          title="No data for this snapshot."
+          detail="No snapshots are available from the remote source."
         />
       ) : (
         <FlatList
@@ -231,7 +258,7 @@ function SnapshotRowCard({
             <Text style={styles.metricsMeta}>{metricsState.errorText}</Text>
           ) : metricsState.status === "loaded" ? (
             metricsState.data.length === 0 ? (
-              <Text style={styles.metricsMeta}>—</Text>
+              <Text style={styles.metricsMeta}>No data for this snapshot.</Text>
             ) : (
               <View style={styles.metricsList}>
                 {metricsState.data.map((m) => (
@@ -243,7 +270,7 @@ function SnapshotRowCard({
               </View>
             )
           ) : (
-            <Text style={styles.metricsMeta}>—</Text>
+            <Text style={styles.metricsMeta}>No data for this snapshot.</Text>
           )}
           <Text style={styles.metricsHint}>value_text (display-only)</Text>
         </View>

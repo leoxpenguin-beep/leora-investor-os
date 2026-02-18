@@ -8,12 +8,14 @@ import {
 } from "react-native";
 
 import { GravityCard } from "../components/GravityCard";
+import { DataSourcePill } from "../components/DataSourcePill";
 import { GravityDot } from "../components/GravityDot";
 import { useDemoMode } from "../demo/demoMode";
 import { logAuditEvent } from "../lib/auditLog";
 import {
   InvestorPositionRow,
   isForbiddenOperationalKpiMetricKey,
+  logRemoteSmokeEvent,
   MetricValueRow,
   rpcGetInvestorPosition,
   rpcListMetricValues,
@@ -73,17 +75,42 @@ export function SnapshotDetailScreen({
 
       if (posRes.status === "fulfilled") {
         setPosition(posRes.value);
+        logRemoteSmokeEvent({
+          screen: "SnapshotDetailScreen",
+          snapshotId,
+          rpc: "rpc_get_investor_position",
+          status: posRes.value ? "success" : "empty",
+        });
       } else {
         setPosition(null);
-        setPositionErrorText("—");
+        setPositionErrorText("Unable to load data.");
+        logRemoteSmokeEvent({
+          screen: "SnapshotDetailScreen",
+          snapshotId,
+          rpc: "rpc_get_investor_position",
+          status: "error",
+        });
         // TODO: Add locked copy for position load error states to docs/LOCKED_COPY.md.
       }
 
       if (metricsRes.status === "fulfilled") {
-        setMetrics(metricsRes.value.filter((m) => !isForbiddenOperationalKpiMetricKey(m.metric_key)));
+        const safeMetrics = metricsRes.value.filter((m) => !isForbiddenOperationalKpiMetricKey(m.metric_key));
+        setMetrics(safeMetrics);
+        logRemoteSmokeEvent({
+          screen: "SnapshotDetailScreen",
+          snapshotId,
+          rpc: "rpc_list_metric_values",
+          status: safeMetrics.length > 0 ? "success" : "empty",
+        });
       } else {
         setMetrics([]);
-        setMetricsErrorText("—");
+        setMetricsErrorText("Unable to load data.");
+        logRemoteSmokeEvent({
+          screen: "SnapshotDetailScreen",
+          snapshotId,
+          rpc: "rpc_list_metric_values",
+          status: "error",
+        });
         // TODO: Add locked copy for metrics load error states to docs/LOCKED_COPY.md.
       }
 
@@ -142,6 +169,7 @@ export function SnapshotDetailScreen({
           <GravityDot size={10} />
           <Text style={styles.title}>Snapshot Detail</Text>
         </View>
+        <DataSourcePill demoModeEnabled={demoModeEnabled} />
 
         <Text style={styles.meta}>
           {month} · {kind} · {projectKey}
@@ -246,7 +274,7 @@ export function SnapshotDetailScreen({
         ) : metricsErrorText ? (
           <Text style={styles.sectionMeta}>{metricsErrorText}</Text>
         ) : metrics.length === 0 ? (
-          <Text style={styles.sectionMeta}>—</Text>
+          <Text style={styles.sectionMeta}>No data for this snapshot.</Text>
         ) : (
           <>
             {valueGroups.map((group) => (
