@@ -273,6 +273,7 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
 
           {tab === "vision" ? (
             <>
+              <Text style={styles.legacyNote}>Quick actions are now in v2.</Text>
               <View style={styles.actions}>
                 {(
                   [
@@ -457,6 +458,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.md,
     gap: theme.spacing.sm,
+  },
+  legacyNote: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    color: theme.colors.subtle,
+    fontSize: 12,
+    lineHeight: 16,
   },
   actionButton: {
     borderRadius: theme.radius.sm,
