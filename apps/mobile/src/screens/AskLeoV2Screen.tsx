@@ -22,6 +22,26 @@ type LeoResponseModel = {
   citations: AskLeoV2Citation[];
 };
 
+function quickActionLabel(action: LeoVisionQuickActionKey): string {
+  return action === "explain_screen"
+    ? "Explain this screen"
+    : action === "what_changed_since_last_snapshot"
+      ? "What changed"
+      : action === "what_should_i_check_next"
+        ? "What to check next"
+        : "Investor brief";
+}
+
+function quickActionPrefillQuestion(action: LeoVisionQuickActionKey, screenTitle: string): string {
+  return action === "explain_screen"
+    ? `Explain the "${screenTitle}" screen for this snapshot using only snapshot-scoped fields.`
+    : action === "what_changed_since_last_snapshot"
+      ? "What changed since the previous snapshot? Use only snapshot-scoped fields. If missing, say Not available in this snapshot."
+      : action === "what_should_i_check_next"
+        ? "What should I check next in this snapshot? Only point to fields present or missing. No calculations, predictions, or advice."
+        : "Create an investor brief for this snapshot using only snapshot-scoped fields. Quote values verbatim and avoid calculations. If missing, say Not available in this snapshot.";
+}
+
 function nonEmptyOrDash(v: string | null | undefined): string {
   return v && v.trim().length > 0 ? v : "—";
 }
@@ -110,9 +130,9 @@ export function AskLeoV2Screen({
   const showWhyPanel =
     response?.summary === NOT_AVAILABLE_IN_SNAPSHOT || (response != null && missingSections.length > 0);
 
-  async function handleRun() {
+  async function handleRun(overrideQuestion?: string) {
     if (sending) return;
-    const q = question.trim();
+    const q = (overrideQuestion ?? question).trim();
     if (!q) return;
 
     setSending(true);
@@ -211,6 +231,47 @@ export function AskLeoV2Screen({
           Snapshot-scoped. Read-only. No calculations or predictions.
         </Text>
 
+        <View style={styles.quickActionsBlock}>
+          <Text style={styles.quickActionsLabel}>Quick actions</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickActionsRow}
+            alwaysBounceHorizontal={false}
+          >
+            {(
+              [
+                "explain_screen",
+                "what_changed_since_last_snapshot",
+                "what_should_i_check_next",
+                "create_investor_brief",
+              ] as const
+            ).map((action) => {
+              const isDisabled = sending;
+              return (
+                <Pressable
+                  key={action}
+                  accessibilityRole="button"
+                  accessibilityLabel={quickActionLabel(action)}
+                  disabled={isDisabled}
+                  onPress={() => {
+                    const q = quickActionPrefillQuestion(action, screenTitle);
+                    setQuestion(q);
+                    void handleRun(q);
+                  }}
+                  style={({ pressed }) => [
+                    styles.quickActionChip,
+                    isDisabled && styles.quickActionChipDisabled,
+                    pressed && styles.quickActionChipPressed,
+                  ]}
+                >
+                  <Text style={styles.quickActionChipText}>{quickActionLabel(action)}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
         <View style={styles.commandRow}>
           <TextInput
             value={question}
@@ -238,6 +299,7 @@ export function AskLeoV2Screen({
           </Pressable>
         </View>
 
+        {sending ? <Text style={styles.sendingText}>Sending…</Text> : null}
         {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
       </GravityCard>
 
@@ -343,6 +405,41 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginBottom: theme.spacing.sm,
   },
+  quickActionsBlock: {
+    marginBottom: theme.spacing.sm,
+  },
+  quickActionsLabel: {
+    color: theme.colors.muted,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  quickActionsRow: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    paddingRight: theme.spacing.sm,
+  },
+  quickActionChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.panel,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  quickActionChipDisabled: {
+    opacity: 0.6,
+  },
+  quickActionChipPressed: {
+    opacity: 0.9,
+  },
+  quickActionChipText: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
   commandRow: {
     flexDirection: "row",
     gap: theme.spacing.sm,
@@ -380,6 +477,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 12,
     fontWeight: "900",
+  },
+  sendingText: {
+    color: theme.colors.subtle,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: theme.spacing.xs,
   },
   errorText: {
     color: theme.colors.subtle,
