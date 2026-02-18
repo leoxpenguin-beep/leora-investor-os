@@ -165,8 +165,8 @@ returns table (
   snapshot_kind text,
   snapshot_month date,
   project_key text,
-  label text,
-  created_at timestamptz
+  created_at timestamptz,
+  label text
 )
 language sql
 stable
@@ -178,8 +178,8 @@ as $$
     s.snapshot_kind,
     s.snapshot_month,
     s.project_key,
-    s.label,
-    s.created_at
+    s.created_at,
+    s.label
   from public.snapshots s
   where (p_kind is null or s.snapshot_kind = p_kind)
   order by s.snapshot_month desc, s.created_at desc;
@@ -198,8 +198,8 @@ returns table (
   snapshot_kind text,
   snapshot_month date,
   project_key text,
-  label text,
-  created_at timestamptz
+  created_at timestamptz,
+  label text
 )
 language sql
 stable
@@ -211,8 +211,8 @@ as $$
     s.snapshot_kind,
     s.snapshot_month,
     s.project_key,
-    s.label,
-    s.created_at
+    s.created_at,
+    s.label
   from public.snapshots s
   where (p_snapshot_kind is null or s.snapshot_kind = p_snapshot_kind)
     and (p_snapshot_month is null or s.snapshot_month = p_snapshot_month)
