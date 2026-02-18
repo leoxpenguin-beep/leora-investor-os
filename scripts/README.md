@@ -17,3 +17,7 @@ Scripts (e.g. `ingest_snapshot.js` or `sync_notion_metrics.ts`) will be added he
 3. Populate `metric_key`, `value_text`, `source_page` (and `snapshot_id`) for every metric row.
 
 See `scripts/ingest_snapshot_skeleton.md` for a copy-only ingest skeleton (no math, allowlisted sources only).
+
+## Module 21 helper
+
+- `scripts/module21_seed_for_user.sql`: optional manual seed helper for local/testing environments where migration-time `auth.uid()` is unknown.
