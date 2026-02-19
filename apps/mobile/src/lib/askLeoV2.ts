@@ -1,4 +1,4 @@
-import { getSupabaseEnvStatus, supabase } from "./supabaseClient";
+import { getSupabaseEnvStatus, getSupabaseRuntimeInfo, supabase } from "./supabaseClient";
 import type { SnapshotContext } from "./snapshotContext";
 
 // Module 18 — Leo Vision v2 UI (read-only)
@@ -25,7 +25,8 @@ export type AskLeoV2Sections = {
 };
 
 function debugLog(message: string, meta?: unknown) {
-  if (!__DEV__) return;
+  const enabled = __DEV__ || process.env.EXPO_PUBLIC_LEO_DIAGNOSTICS === "1";
+  if (!enabled) return;
   if (meta === undefined) {
     console.log(`[AskLeoV2] ${message}`);
     return;
@@ -132,8 +133,13 @@ export async function askLeoV2(input: {
   } | null;
 }): Promise<AskLeoV2Sections> {
   const env = getSupabaseEnvStatus();
+  debugLog("supabase runtime", getSupabaseRuntimeInfo());
   if (!supabase || !env.hasUrl || !env.hasAnonKey) {
     throw new Error("Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY");
+  }
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? "";
+  if (!anonKey) {
+    throw new Error("Missing env: EXPO_PUBLIC_SUPABASE_ANON_KEY");
   }
 
   const question = input.question.trim();
@@ -146,11 +152,30 @@ export async function askLeoV2(input: {
     };
   }
 
+  try {
+    const sessionRes = await supabase.auth.getSession();
+    const s = sessionRes.data.session;
+    debugLog("auth session", {
+      hasSession: Boolean(s),
+      hasAccessToken: Boolean(s?.access_token),
+      userId: s?.user?.id ?? null,
+      expiresAt: s?.expires_at ?? null,
+    });
+  } catch (e) {
+    debugLog("auth session read failed", {
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
+
   debugLog("invoke ask_leo_v2: start", {
     snapshotId: input.snapshotContext.snapshot_id,
     hasActiveSnapshot: Boolean(input.activeSnapshot),
   });
   const { data, error } = await supabase.functions.invoke("ask_leo_v2", {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
     body: {
       question,
       snapshot_id: input.snapshotContext.snapshot_id,
@@ -161,11 +186,17 @@ export async function askLeoV2(input: {
 
   if (error) {
     const message = extractErrorMessage(error);
-    debugLog("invoke ask_leo_v2: error", { message });
+    debugLog("invoke ask_leo_v2: error", {
+      message,
+      errorKeys: error && typeof error === "object" ? Object.keys(error as Record<string, unknown>) : [],
+    });
     throw new Error(message);
   }
 
-  debugLog("invoke ask_leo_v2: success");
+  debugLog("invoke ask_leo_v2: success", {
+    dataType: typeof data,
+    dataKeys: data && typeof data === "object" ? Object.keys(data as Record<string, unknown>) : [],
+  });
   return normalizeSectionsFromUnknown(data);
 }
 
