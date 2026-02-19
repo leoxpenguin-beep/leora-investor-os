@@ -46,6 +46,15 @@ function extractErrorMessage(error: unknown): string {
   return "Unknown edge function error";
 }
 
+function extractErrorStatus(error: unknown): number | null {
+  if (!error || typeof error !== "object") return null;
+  const rec = error as Record<string, unknown>;
+  if (typeof rec.status === "number") return rec.status;
+  const context = rec.context as { status?: unknown } | undefined;
+  if (context && typeof context.status === "number") return context.status;
+  return null;
+}
+
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
@@ -152,9 +161,11 @@ export async function askLeoV2(input: {
     };
   }
 
+  let sessionAccessToken: string | null = null;
   try {
     const sessionRes = await supabase.auth.getSession();
     const s = sessionRes.data.session;
+    sessionAccessToken = s?.access_token ?? null;
     debugLog("auth session", {
       hasSession: Boolean(s),
       hasAccessToken: Boolean(s?.access_token),
@@ -170,12 +181,18 @@ export async function askLeoV2(input: {
   debugLog("invoke ask_leo_v2: start", {
     snapshotId: input.snapshotContext.snapshot_id,
     hasActiveSnapshot: Boolean(input.activeSnapshot),
+    hasSessionAccessToken: Boolean(sessionAccessToken),
   });
+
+  const invokeHeaders: Record<string, string> = {
+    apikey: anonKey,
+  };
+  if (sessionAccessToken) {
+    invokeHeaders.Authorization = `Bearer ${sessionAccessToken}`;
+  }
+
   const { data, error } = await supabase.functions.invoke("ask_leo_v2", {
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-    },
+    headers: invokeHeaders,
     body: {
       question,
       snapshot_id: input.snapshotContext.snapshot_id,
@@ -186,8 +203,10 @@ export async function askLeoV2(input: {
 
   if (error) {
     const message = extractErrorMessage(error);
+    const status = extractErrorStatus(error);
     debugLog("invoke ask_leo_v2: error", {
       message,
+      status,
       errorKeys: error && typeof error === "object" ? Object.keys(error as Record<string, unknown>) : [],
     });
     throw new Error(message);
