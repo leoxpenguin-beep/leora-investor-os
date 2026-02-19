@@ -11,6 +11,13 @@ export function getSupabaseEnvStatus() {
   };
 }
 
+export function getSupabaseRuntimeInfo() {
+  return {
+    hasUrl: Boolean(supabaseUrl),
+    hasAnonKey: Boolean(supabaseAnonKey),
+  };
+}
+
 export const supabase =
   supabaseUrl && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey, {
