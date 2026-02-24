@@ -13,3 +13,4 @@ yarn-error.log*
 dist/
 build/
 *.tsbuildinfo
+supabase/.temp/
