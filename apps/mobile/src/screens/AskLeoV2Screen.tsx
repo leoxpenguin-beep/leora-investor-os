@@ -203,10 +203,23 @@ export function AskLeoV2Screen({
           current: curPack,
           previous: null,
         });
+        const demoText = demoAnswer?.trim().length ? demoAnswer : NOT_AVAILABLE_IN_SNAPSHOT;
+        let summary = "—";
+        let what_changed = "—";
+        let context = "—";
+
+        if (inferredAction === "what_changed_since_last_snapshot") {
+          what_changed = demoText;
+        } else if (inferredAction === "what_should_i_check_next") {
+          context = demoText;
+        } else {
+          summary = demoText;
+        }
+
         setResponse({
-          summary: demoAnswer || "—",
-          what_changed: "—",
-          context: "—",
+          summary,
+          what_changed,
+          context,
           citations: asCitationCardsFromSnapshotSources(curLoaded?.sources ?? []),
         });
         return;
