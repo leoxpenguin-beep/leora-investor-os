@@ -22,6 +22,13 @@ type LeoResponseModel = {
   citations: AskLeoV2Citation[];
 };
 
+type AskLeoV2InvokeResponse = {
+  answerText?: string;
+  citations?: AskLeoV2Citation[];
+  evidenceUsed?: string[];
+  notAvailable?: string[];
+};
+
 function debugLog(message: string, meta?: unknown) {
   if (!__DEV__) return;
   if (meta === undefined) {
@@ -209,7 +216,7 @@ export function AskLeoV2Screen({
       debugLog("handleRun: invoking askLeoV2", {
         snapshotId: snapshot.id,
       });
-      const v2 = await askLeoV2({
+      const v2 = (await askLeoV2({
         question: q,
         snapshotContext,
         activeSnapshot: {
@@ -219,19 +226,45 @@ export function AskLeoV2Screen({
           created_at: snapshot.created_at ?? null,
           label: snapshot.label ?? null,
         },
-      });
+      })) as AskLeoV2InvokeResponse;
       debugLog("handleRun: askLeoV2 resolved");
 
+      const inferredAction = inferSafeActionFromQuestion(q);
+      const answerText = typeof v2?.answerText === "string" ? v2.answerText.trim() : "";
+      const routedAnswer = answerText.length > 0 ? answerText : NOT_AVAILABLE_IN_SNAPSHOT;
+
+      let summary = "—";
+      let what_changed = "—";
+      let context = "—";
+
+      if (inferredAction === "what_changed_since_last_snapshot") {
+        what_changed = routedAnswer;
+      } else if (inferredAction === "what_should_i_check_next") {
+        context = routedAnswer;
+      } else {
+        summary = routedAnswer;
+      }
+
       const normalized: LeoResponseModel = {
-        summary: v2.summary || NOT_AVAILABLE_IN_SNAPSHOT,
-        what_changed: v2.what_changed?.trim().length ? v2.what_changed : "—",
-        context: v2.context?.trim().length ? v2.context : "—",
+        summary,
+        what_changed,
+        context,
         citations: v2.citations ?? [],
       };
 
       // Hard requirement: if missing/invalid, show exact phrase.
-      if (!normalized.summary || normalized.summary.trim().length === 0) {
-        normalized.summary = NOT_AVAILABLE_IN_SNAPSHOT;
+      if (inferredAction === "what_changed_since_last_snapshot") {
+        if (!normalized.what_changed || normalized.what_changed.trim().length === 0) {
+          normalized.what_changed = NOT_AVAILABLE_IN_SNAPSHOT;
+        }
+      } else if (inferredAction === "what_should_i_check_next") {
+        if (!normalized.context || normalized.context.trim().length === 0) {
+          normalized.context = NOT_AVAILABLE_IN_SNAPSHOT;
+        }
+      } else {
+        if (!normalized.summary || normalized.summary.trim().length === 0) {
+          normalized.summary = NOT_AVAILABLE_IN_SNAPSHOT;
+        }
       }
 
       setResponse(normalized);
