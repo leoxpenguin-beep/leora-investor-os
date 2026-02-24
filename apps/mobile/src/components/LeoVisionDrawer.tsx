@@ -1,6 +1,7 @@
 import * as Clipboard from "expo-clipboard";
 import React from "react";
 import {
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -44,6 +45,15 @@ type LoadedSnapshotData = {
 };
 
 type DrawerTabKey = "vision" | "v2";
+
+function debugLog(message: string, meta?: Record<string, unknown>) {
+  if (!__DEV__) return;
+  if (!meta) {
+    console.log(`[LeoVisionDrawer] ${message}`);
+    return;
+  }
+  console.log(`[LeoVisionDrawer] ${message}`, meta);
+}
 
 function actionLabel(action: LeoVisionQuickActionKey): string {
   return action === "explain_screen"
@@ -95,6 +105,16 @@ async function findPreviousSnapshot(current: SnapshotRow): Promise<SnapshotRow |
 
 export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot }: LeoVisionDrawerProps) {
   const [tab, setTab] = React.useState<DrawerTabKey>("v2");
+  const windowHeight = Dimensions.get("window").height;
+  const snapPoints = React.useMemo(
+    () => [Math.round(windowHeight * 0.6), Math.round(windowHeight * 0.88)] as const,
+    [windowHeight]
+  );
+  const expandedIndex = snapPoints.length - 1;
+  const expandedHeight = snapPoints[expandedIndex];
+  const [sheetIndex, setSheetIndex] = React.useState(expandedIndex);
+  const clampedIndex = Math.min(Math.max(sheetIndex, 0), snapPoints.length - 1);
+  const sheetHeight = Math.max(expandedHeight, snapPoints[clampedIndex]);
 
   const [activeAction, setActiveAction] = React.useState<LeoVisionQuickActionKey | null>(null);
   const [answerText, setAnswerText] = React.useState<string | null>(null);
@@ -108,7 +128,19 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
     // Reset transient UI when opening.
     setCopyMeta(null);
     setLoading(false);
+    setSheetIndex(expandedIndex);
   }, [visible]);
+
+  React.useEffect(() => {
+    if (!visible) return;
+    debugLog("mode changed", { tab, height: expandedHeight });
+    setSheetIndex(expandedIndex);
+  }, [tab, visible, expandedIndex, expandedHeight]);
+
+  React.useEffect(() => {
+    if (!visible) return;
+    debugLog("sheet index changed", { index: sheetIndex, height: sheetHeight });
+  }, [sheetIndex, visible, sheetHeight]);
 
   React.useEffect(() => {
     // If the active snapshot changes, invalidate cached snapshot data.
@@ -216,7 +248,7 @@ export function LeoVisionDrawer({ visible, onClose, route, screenTitle, snapshot
         />
 
         <KeyboardAvoidingView
-          style={styles.sheet}
+          style={[styles.sheet, { height: sheetHeight, maxHeight: sheetHeight }]}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <View style={styles.sheetHeader}>
@@ -379,7 +411,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.bg,
     paddingBottom: theme.spacing.md,
-    maxHeight: "88%",
   },
   sheetHeader: {
     flexDirection: "row",
